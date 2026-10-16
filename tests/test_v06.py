@@ -111,7 +111,7 @@ def test_iq_metadata_required(tmp_path):
 
 
 def test_gui_contains_replay_pbt_fft_and_waterfall_controls():
-    src = (Path(__file__).resolve().parents[1]/'sdr_studio'/'app.py').read_text()
+    src = (Path(__file__).resolve().parents[1]/'sdr_studio'/'app.py').read_text(encoding='utf-8')
     tree = ast.parse(src)
     cls = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == 'Window')
     names = {m.name for m in cls.body if isinstance(m, ast.FunctionDef)}

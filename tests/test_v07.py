@@ -108,13 +108,14 @@ def test_two_channel_audio_output(monkeypatch):
 def test_rds_bridge_receives_json_from_real_child_process(tmp_path):
     """Child-process/stdin/stdout plumbing, not a claim of real RF reception."""
     import time
+    import sys
     from pathlib import Path
     from sdr_studio.rds import RDSBridge
-    script=tmp_path/'redsea_fake'
+    script=tmp_path/'redsea_fake.py'
     script.write_text('#!/usr/bin/env python3\nimport sys\nx=sys.stdin.buffer.read1(200)\nif len(x)==200:\n print(\'{"pi":"0x1234","ps":"TEST FM","radiotext":"RDS test"}\',flush=True)\n',encoding='utf-8')
     script.chmod(0o755)
     events=[]; log=[]
-    bridge=RDSBridge(str(script),250000,events.append,log.append).start()
+    bridge=RDSBridge([sys.executable, str(script)],250000,events.append,log.append).start()
     try:
         bridge.submit(np.zeros(1000,dtype=np.float32))
         until=time.monotonic()+10

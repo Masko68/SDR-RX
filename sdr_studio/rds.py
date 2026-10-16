@@ -43,7 +43,7 @@ class RDSStatus:
 
 class RDSBridge:
     def __init__(self, executable, if_rate, callback, status_callback):
-        self.executable=str(executable)
+        self.executable=[str(part) for part in executable] if isinstance(executable,(list,tuple)) else str(executable)
         self.if_rate=int(round(if_rate))
         if self.if_rate < 130_000:
             raise ValueError('RDS vereist IF sample-rate minimaal 130 kHz')
@@ -58,10 +58,11 @@ class RDSBridge:
 
     def start(self):
         flags=getattr(subprocess,'CREATE_NO_WINDOW',0) if os.name=='nt' else 0
-        self.process=subprocess.Popen([self.executable,'--input','mpx','-r','171k'],
+        command=list(self.executable) if isinstance(self.executable,list) else [self.executable]
+        self.process=subprocess.Popen([*command,'--input','mpx','-r','171k'],
                          stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,
                          bufsize=0,creationflags=flags,
-                         cwd=str(Path(self.executable).resolve().parent) if Path(self.executable).is_file() else None)
+                         cwd=str(Path(command[0]).resolve().parent) if Path(command[0]).is_file() else None)
         for name, fn in [('RDS-writer',self._writer),('RDS-reader',self._reader),('RDS-errors',self._errors)]:
             t=threading.Thread(target=fn,name=name,daemon=True)
             t.start();self.threads.append(t)
