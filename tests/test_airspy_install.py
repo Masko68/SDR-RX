@@ -36,7 +36,7 @@ def test_no_airspy_rejects_zip(tmp_path):
     archive=tmp_path/'wrong.zip'
     with zipfile.ZipFile(archive,'w') as z:
         z.writestr('release/x64/libusb-1.0.dll',fake_dll(0x8664))
-    with pytest.raises(ValueError,match='Geen x64 libairspy'):
+    with pytest.raises(ValueError,match='Geen x64 airspy.dll of libairspy.dll'):
         import_vendor_dlls(archive,tmp_path/'drivers')
 
 

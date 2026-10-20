@@ -46,7 +46,7 @@ def import_vendor_dlls(archive: str | Path, target_dir: str | Path) -> list[str]
                 continue
             copies[name.lower()] = data
     if not ({'libairspy.dll', 'airspy.dll'} & copies.keys()):
-        raise ValueError('Geen x64 libairspy.dll gevonden. Download de officiële Windows x64 Host Tools ZIP.')
+        raise ValueError('Geen x64 airspy.dll of libairspy.dll gevonden. Download de officiële Windows x64 Host Tools ZIP.')
     dest.mkdir(parents=True, exist_ok=True)
     # Preflight all existing files before writing anything.
     for name, data in copies.items():

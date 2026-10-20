@@ -37,44 +37,44 @@ DECODERS = (
             'audio16', 144_800_000, 'https://github.com/wb2osz/direwolf'),
     Decoder('dump978 · UAT vliegtuigen', 'UAT 978 MHz', 'configure', 'dump978',
             'Vereist een compatibele dump978-build en een passende 978 MHz IQ-ingang. Nog geen automatische IQ-koppeling.',
-            link='https://github.com/flightaware/dump978'),
+            preset_hz=978_000_000, link='https://github.com/flightaware/dump978'),
     Decoder('DSD-neo · Digital Auto', 'DMR, P25 I/II, NXDN, D-STAR, YSF, dPMR, ProVoice, M17, X2',
             'stream', 'dsd-neo',
             'Experimenteel: 48 kHz NFM PCM naar DSD-neo, 8 kHz decoderstem naar luidspreker; compatibele Windows-runtime vereist.',
-            'voice16', link='https://github.com/LuislopezMartinez/IC-SDR', voice_flag='-fa', voice_channels=2),
+            'voice16', link='https://github.com/arancormonk/dsd-neo/releases', voice_flag='-fa', voice_channels=2),
     Decoder('DSD-neo · DMR', 'DMR TDMA TS1/TS2', 'stream', 'dsd-neo',
             'Experimentele DMR-audiobrug en dual-slot voice-output via DSD-neo.', 'voice16',
-            link='https://github.com/LuislopezMartinez/IC-SDR', voice_flag='-fs', voice_channels=2),
+            link='https://github.com/arancormonk/dsd-neo/releases', voice_flag='-fs', voice_channels=2),
     Decoder('DSD-neo · P25 fase I', 'P25 fase I', 'stream', 'dsd-neo',
             'Experimentele P25 I 48 kHz PCM-invoer.', 'voice16',
-            link='https://github.com/LuislopezMartinez/IC-SDR', voice_flag='-f1'),
+            link='https://github.com/arancormonk/dsd-neo/releases', voice_flag='-f1'),
     Decoder('DSD-neo · P25 fase II', 'P25 fase II', 'stream', 'dsd-neo',
             'Experimentele P25 II 48 kHz PCM-invoer.', 'voice16',
-            link='https://github.com/LuislopezMartinez/IC-SDR', voice_flag='-f2', voice_channels=2),
+            link='https://github.com/arancormonk/dsd-neo/releases', voice_flag='-f2', voice_channels=2),
     Decoder('DSD-neo · NXDN 48', 'NXDN 4800 baud', 'stream', 'dsd-neo',
             'Experimentele NXDN4800 PCM-invoer.', 'voice16',
-            link='https://github.com/LuislopezMartinez/IC-SDR', voice_flag='-fi'),
+            link='https://github.com/arancormonk/dsd-neo/releases', voice_flag='-fi'),
     Decoder('DSD-neo · NXDN 96', 'NXDN 9600 baud', 'stream', 'dsd-neo',
             'Experimentele NXDN9600 PCM-invoer.', 'voice16',
-            link='https://github.com/LuislopezMartinez/IC-SDR', voice_flag='-fn'),
+            link='https://github.com/arancormonk/dsd-neo/releases', voice_flag='-fn'),
     Decoder('DSD-neo · D-STAR', 'D-STAR', 'stream', 'dsd-neo',
             'Experimentele D-STAR PCM-invoer.', 'voice16',
-            link='https://github.com/LuislopezMartinez/IC-SDR', voice_flag='-fd'),
+            link='https://github.com/arancormonk/dsd-neo/releases', voice_flag='-fd'),
     Decoder('DSD-neo · YSF', 'Yaesu System Fusion', 'stream', 'dsd-neo',
             'Experimentele YSF PCM-invoer.', 'voice16',
-            link='https://github.com/LuislopezMartinez/IC-SDR', voice_flag='-fy'),
+            link='https://github.com/arancormonk/dsd-neo/releases', voice_flag='-fy'),
     Decoder('DSD-neo · dPMR', 'dPMR', 'stream', 'dsd-neo',
             'Experimentele dPMR PCM-invoer.', 'voice16',
-            link='https://github.com/LuislopezMartinez/IC-SDR', voice_flag='-fm'),
+            link='https://github.com/arancormonk/dsd-neo/releases', voice_flag='-fm'),
     Decoder('DSD-neo · ProVoice', 'ProVoice', 'stream', 'dsd-neo',
             'Experimentele ProVoice PCM-invoer.', 'voice16',
-            link='https://github.com/LuislopezMartinez/IC-SDR', voice_flag='-fp'),
+            link='https://github.com/arancormonk/dsd-neo/releases', voice_flag='-fp'),
     Decoder('DSD-neo · M17', 'M17', 'stream', 'dsd-neo',
             'Experimentele M17 PCM-invoer.', 'voice16',
-            link='https://github.com/LuislopezMartinez/IC-SDR', voice_flag='-fz'),
+            link='https://github.com/arancormonk/dsd-neo/releases', voice_flag='-fz'),
     Decoder('DSD-neo · X2-TDMA', 'X2-TDMA', 'stream', 'dsd-neo',
             'Experimentele X2 PCM-invoer.', 'voice16',
-            link='https://github.com/LuislopezMartinez/IC-SDR', voice_flag='-fx', voice_channels=2),
+            link='https://github.com/arancormonk/dsd-neo/releases', voice_flag='-fx', voice_channels=2),
     Decoder('DSD-FME · digitale spraak', 'DMR, P25, NXDN, YSF, M17 (buildafhankelijk)', 'configure', 'dsd-fme',
             'Voornamelijk Linux-georiënteerd; op Windows installatie en audio-routing handmatig nodig.',
             link='https://github.com/lwvmobile/dsd-fme'),
@@ -88,19 +88,31 @@ DECODERS = (
             'Eigen radiosonde-keten nodig, bijvoorbeeld radiosonde_auto_rx of specifieke rs41mod/dfm decoders.',
             link='https://github.com/projecthorus/radiosonde_auto_rx'),
     Decoder('SSTV · afbeeldingen', 'Robot, Martin, Scottie SSTV', 'audio/iq', '',
-            'Vereist bijvoorbeeld MMSSTV of een ander programma met een audio-ingang.'),
+            'Vereist bijvoorbeeld MMSSTV of een ander programma met een audio-ingang.',
+            link='https://hamsoft.ca/pages/mmsstv.php'),
     Decoder('FT8 / FT4 · WSJT-X', 'FT8, FT4, JT65', 'audio/iq', 'wsjtx',
             'Tijdgesynchroniseerde audio-ingang en correcte klok nodig; gebruik WSJT-X.',
             link='https://wsjt.sourceforge.io/'),
     Decoder('RTTY / PSK31 · fldigi', 'RTTY, PSK31, Olivia, MFSK', 'audio/iq', 'fldigi',
             'Vereist afstemming van audiobrug en fldigi-instellingen.',
             link='https://github.com/w1hkj/fldigi'),
-    Decoder('POCSAG / FLEX · pagers', 'POCSAG, FLEX', 'audio/iq', 'multimon-ng',
-            'Externe decoder en correct gekoppelde discriminatoraudiostream nodig.',
-            link='https://github.com/EliasOenal/multimon-ng'),
-    Decoder('ACARS · vliegtuigberichten', 'ACARS VHF', 'configure', 'acarsdec',
-            'Externe ACARS-decoder met audio of IQ, afhankelijk van gebruikte build.',
-            link='https://github.com/TLeconte/acarsdec'),
+    Decoder('multimon-ng · POCSAG', 'POCSAG 512/1200/2400', 'stream', 'multimon-ng',
+            'NFM-discriminator via stdin als 22050 Hz PCM16LE; externe multimon-ng-build vereist. Alleen toegestane berichten.',
+            'audio16', link='https://github.com/EliasOenal/multimon-ng'),
+    Decoder('multimon-ng · FLEX', 'FLEX / FLEX_NEXT', 'stream', 'multimon-ng',
+            'NFM-discriminator via stdin als 22050 Hz PCM16LE; FLEX-ondersteuning moet in de Windows-build zitten.',
+            'audio16', link='https://github.com/EliasOenal/multimon-ng'),
+    Decoder('ACARS · vliegtuigberichten', 'ACARS VHF 131 MHz AM', 'external-rtl', 'acarsdec',
+            'Acarsdec opent ZELF een vrijgegeven RTL-SDR (-r) of Airspy (-s); juiste Windows-build/hardwareondersteuning vereist. App-ontvanger wordt gestopt.',
+            preset_hz=131_525_000, link='https://github.com/TLeconte/acarsdec'),
+    Decoder('VDL Mode 2 · vliegtuigdata', 'VDL2 ACARS-datalink', 'configure', 'dumpvdl2',
+            'Alleen extern: dumpvdl2 heeft een eigen IQ/audio-ingang nodig, nog geen stdin-bridge.',
+            link='https://github.com/szpajder/dumpvdl2'),
+    Decoder('WSPR · zwakke signalen', 'WSPR HF', 'audio/iq', 'wsjtx',
+            'Gebruik WSJT-X met USB-audio (virtuele kabel/loopback) en nauwkeurige klok; geen directe audiobrug.',
+            link='https://wsjt.sourceforge.io/'),
+    Decoder('NOAA APT · weerbeelden', 'NOAA APT VHF weerfax', 'audio/iq', '',
+            'WFM/NFM-audio naar een externe APT-beelddecoder/virtuele audiokabel; geen ingebouwde APT-decoder.'),
     Decoder('Eigen decoder / handmatig', 'Extern proces (handmatig)', 'configure', '',
             'Selecteer zelf programma, argumenten en compatibele ingang.'),
 )
@@ -120,6 +132,12 @@ def stream_command(decoder: Decoder, frequency: int, device: str) -> tuple[str, 
         return 'dump1090', ['--ifile', '-', '--raw'], 2_000_000
     if decoder.executable == 'direwolf' and decoder.stream == 'audio16':
         return 'direwolf', ['-r', '48000', '-n', '1', '-b', '16', '-B', '1200', '-t', '0', '-q', 'dx', '-'], 48_000
+    if decoder.executable == 'multimon-ng' and decoder.stream == 'audio16':
+        if 'POCSAG' in decoder.label:
+            return 'multimon-ng', ['-t', 'raw', '-a', 'POCSAG512', '-a', 'POCSAG1200',
+                                   '-a', 'POCSAG2400', '-'], 22_050
+        if 'FLEX' in decoder.label:
+            return 'multimon-ng', ['-t', 'raw', '-a', 'FLEX', '-a', 'FLEX_NEXT', '-'], 22_050
     if decoder.executable == 'dsd-neo' and decoder.stream == 'voice16' and decoder.voice_flag:
         return 'dsd-neo', [decoder.voice_flag, '-i', '-', '-s', '48000', '-o', '-'], 48_000
     raise ValueError('Geen geïntegreerde IQ/audio-stdin mode voor ' + decoder.label)
@@ -130,6 +148,13 @@ def decoder_template(decoder: Decoder, freq: int, device: str) -> tuple[str, str
     if decoder.stream:
         executable, args, _ = stream_command(decoder, freq, device)
         return executable, ' '.join(args)
+    if decoder.executable == 'acarsdec' and decoder.approach == 'external-rtl':
+        mhz = f'{freq / 1_000_000:.3f}'
+        if device == 'RTL-SDR':
+            return 'acarsdec', f'-o 4 -r 0 {mhz}'
+        if device == 'Airspy R2':
+            return 'acarsdec', f'-o 4 -s 0 {mhz}'
+        return 'acarsdec', ''
     return decoder.executable, ''
 
 
@@ -137,6 +162,10 @@ def decoder_description(decoder: Decoder, device: str) -> str:
     text = f'Modes: {decoder.protocols}. {decoder.input_hint}'
     if decoder.stream:
         text += ' IQ/audio-koppeling vanuit SDR Studio RX aanwezig (externe decoder vereist).'
+    elif decoder.approach == 'external-rtl':
+        text += ' Eigen SDR-aansturing door decoder; SDR Studio RX geeft de USB-ontvanger eerst vrij. Pas apparaatindex 0 zo nodig aan.'
+    elif decoder.approach == 'audio/iq':
+        text += ' Externe audioverbinding of eigen ontvanger vereist; geen automatische audio-overdracht.'
     else:
         text += ' Alleen handmatige externe integratie, geen live IQ-koppeling.'
     if device == 'Airspy R2' and decoder.stream:

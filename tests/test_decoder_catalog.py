@@ -5,7 +5,7 @@ def test_catalog_discloses_external_runtime():
     assert len(DECODERS) >= 17
     assert len({d.label for d in DECODERS}) == len(DECODERS)
     assert all(d.input_hint for d in DECODERS)
-    assert sum(bool(d.stream) for d in DECODERS) == 16
+    assert sum(bool(d.stream) for d in DECODERS) == 18
 
 
 def test_rtl433_uses_shared_iq_bridge_on_both_receivers():

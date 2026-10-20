@@ -45,13 +45,32 @@ class StreamConverter:
         self.up = self.target_rate // gcd
         self.down = self.source_rate // gcd
         self.remainder = np.empty(0, dtype=np.complex64)
-        self.demodulator = Demodulator(self.source_rate, 'NFM') if output_format == 'audio16' else None
+        self.audio_remainder = np.empty(0, dtype=np.float32)
+        # Both APRS (audio16) and DSD-neo (voice16) consume NFM discriminator
+        # PCM, not raw complex IQ. Previously voice16 left this as None and
+        # crashed at the first convert() call (AttributeError).
+        # Decoder input should not be volume-pumped by the speaker AGC.
+        self.demodulator = (Demodulator(self.source_rate, 'NFM', agc=False)
+                            if output_format in ('audio16', 'voice16') else None)
 
     def convert(self, iq: np.ndarray) -> bytes:
         iq = np.asarray(iq, dtype=np.complex64)
         if self.output_format in ('audio16', 'voice16'):
             # Dire Wolf receives discriminator audio at 48 kHz, not IQ.
             mono, _level = self.demodulator.process(iq)
+            if self.target_rate != 48_000:
+                # FM demodulator emits 48 kHz; e.g. multimon-ng expects
+                # 22.05 kHz raw PCM. Keep an integral resampling boundary
+                # across SDR blocks to avoid duration drift.
+                divisor = 48_000 // math.gcd(48_000, self.target_rate)
+                mono = np.concatenate((self.audio_remainder, mono))
+                complete = (len(mono) // divisor) * divisor
+                self.audio_remainder = mono[complete:].copy()
+                if complete == 0:
+                    return b''
+                mono = signal.resample_poly(mono[:complete],
+                                            self.target_rate // math.gcd(48_000, self.target_rate),
+                                            divisor)
             return (np.clip(mono, -1, 1) * 32767).astype('<i2').tobytes()
         if len(self.remainder):
             iq = np.concatenate((self.remainder, iq))
@@ -163,6 +182,24 @@ def parse_decoder_line(mode: str, line: str) -> DecoderEvent | None:
         # Decoding of aircraft identity/position is a separate step.
         info, ident = _modes_details(value)
         return DecoderEvent('Mode S', ident, info, value)
+    if 'multimon-ng' in mode:
+        match = re.match(r'^(POCSAG(?:512|1200|2400)?|FLEX(?:_NEXT)?)(?:\s*[:\-]\s*|\s+)(.+)$', value, re.I)
+        if match and len(match.group(2).strip()) >= 3:
+            content = match.group(2).strip()
+            address = re.search(r'\b(?:Address|Capcode|RIC|CAP)\s*[:=]\s*(\d+)', content, re.I)
+            ident = address.group(1) if address else match.group(1).upper()
+            return DecoderEvent(match.group(1).upper(), ident, content[:240], value)
+    if 'ACARS' in mode and value.startswith('{'):
+        try:
+            data = json.loads(value)
+        except (TypeError, ValueError):
+            return None
+        if isinstance(data, dict) and ('label' in data or 'flight' in data) and any(
+                key in data for key in ('text', 'msg', 'flight', 'tail')):
+            ident = str(data.get('flight') or data.get('tail') or data.get('label') or '?')[:40]
+            detail = ' · '.join(f'{k}: {data[k]}' for k in ('label', 'flight', 'tail', 'text', 'msg')
+                                if k in data and data[k] is not None)
+            return DecoderEvent('ACARS', ident, detail[:240], value)
     if 'Dire Wolf' in mode and ('>' in value and ':' in value):
         return DecoderEvent('APRS/AX.25', value.split('>', 1)[0][:35], value[:240], value)
     if 'DSD-neo' in mode:
@@ -170,7 +207,13 @@ def parse_decoder_line(mode: str, line: str) -> DecoderEvent | None:
         # Mere energy or a spectral pattern cannot prove DMR/P25/etc.
         proto = re.search(r'(?<![A-Za-z0-9])(P25(?:[ -]?(?:I{1,2}|1|2))?|DMR|NXDN|D-STAR|YSF|dPMR|M17|ProVoice|X2-TDMA)(?![A-Za-z0-9])',value,re.I)
         evidence = re.search(r'\b(sync(?:ed)?|voice|data|frame|slot|ts[12]|call|nac|ran|cc=)\b',value,re.I)
-        if proto and evidence:
+        # Do not turn explicitly *failed* synchronization into a positive event.
+        # Positive log lines still come only from the external decoder.
+        sync_failed = re.search(
+            r'\b(?:no|lost|without|failed|not)\s+(?:\w+\s+){0,2}sync\b'
+            r'|\bsync\s+(?:lost|failed|not\s+found)\b|\bunsynced?\b',
+            value, re.I)
+        if proto and evidence and not sync_failed:
             return DecoderEvent(proto.group(1).upper(),'DSD-neo AUTO',value[:240],value)
     return None
 
@@ -256,13 +299,15 @@ class DigitalDecoderWorker(threading.Thread):
     def _voice_reader(self, stdout):
         # DSD-neo publishes signed little-endian 8-kHz audio on stdout.
         # Never decode that binary pipe as text or print it in the GUI.
+        channels = self.profile.voice_channels
         try:
             from .audio import AudioOutput
-            self.voice_output = AudioOutput()
+            # DMR/P25 can carry independent left/right slots. Do not mix
+            # stereo down to mono before playback; preserve the channel map.
+            self.voice_output = AudioOutput(channels=channels)
         except Exception as exc:
             self.status_callback(f'Decoder draait, maar spraakuitgang ontbreekt: {exc}')
         pending = b''
-        channels = self.profile.voice_channels
         chunk_bytes = 160 * 2 * channels
         try:
             while not self.stop_event.is_set():
@@ -276,8 +321,10 @@ class DigitalDecoderWorker(threading.Thread):
                 data = np.frombuffer(pending[:aligned], dtype='<i2').astype(np.float32) / 32768.0
                 pending = pending[aligned:]
                 if channels == 2:
-                    data = data.reshape(-1, 2).mean(axis=1)
-                audio = signal.resample_poly(data, 6, 1).astype(np.float32)
+                    data = data.reshape(-1, 2)
+                # Stereo remains (frames,2); mono remains (frames,). DSD-neo
+                # emits digital voice at 8 kHz, while AudioOutput uses 48 kHz.
+                audio = signal.resample_poly(data, 6, 1, axis=0).astype(np.float32)
                 self.voice_bytes += len(chunk)
                 if self.voice_output:
                     self.voice_output.submit(audio)

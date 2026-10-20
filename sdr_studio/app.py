@@ -19,7 +19,7 @@ from .signal_hints import signal_hint
 from .digital_auto import RFMonitor
 from .scan import frequency_range
 from .decoder_catalog import DECODERS, decoder_template, decoder_description, stream_command
-from .digital_stream import DigitalDecoderWorker, DecoderEvent
+from .digital_stream import DigitalDecoderWorker, DecoderEvent, parse_decoder_line
 from .hardware import discover
 from .device_ids import encode_device_id, decode_device_id
 from .memories import load_memories, save_memories
@@ -1013,6 +1013,10 @@ class Window(QtWidgets.QMainWindow):
         self.decoder_availability = QtWidgets.QLabel('')
         self.decoder_availability.setWordWrap(True)
         dec.addWidget(self.decoder_availability)
+        self.decoder_project_btn = QtWidgets.QPushButton('↗ Project / download van externe decoder')
+        self.decoder_project_btn.setToolTip('Opent alleen de projectwebsite; installeert niets automatisch.')
+        self.decoder_project_btn.clicked.connect(self.open_decoder_project)
+        dec.addWidget(self.decoder_project_btn)
         dec.addWidget(QtWidgets.QLabel('Uitvoerbaar programma:'))
         self.exec_name = QtWidgets.QLineEdit()
         exe_picker = QtWidgets.QHBoxLayout()
@@ -2225,26 +2229,28 @@ class Window(QtWidgets.QMainWindow):
         self.exec_name.setText(local or executable)
         self.decoder_args.setText(arguments)
         self.decoder_info.setText(decoder_description(choice, device))
+        self.decoder_project_btn.setEnabled(bool(choice.link))
         self.preset_btn.setEnabled(bool(choice.preset_hz))
+        connection_type = ('Live IQ/audio-brug: ' + choice.stream.upper() if choice.stream else
+                           'Eigen SDR van decoder' if choice.approach == 'external-rtl' else
+                           'Virtuele audio/externe applicatie' if choice.approach == 'audio/iq' else
+                           'Handmatig extern proces')
         self.decoder_availability.setText(
-            ('IQ-brug: ' + choice.stream.upper() if choice.stream else 'Handmatig extern proces') +
+            connection_type +
             (' | Decoder gevonden' if local or shutil.which(executable or 'NONEXISTENT') else
              ' | Installeer de externe decoder')
         )
 
     @staticmethod
     def find_local_decoder(name: str) -> str:
-        if not name:
-            return ''
-        import os
-        if Path(name).is_file():
-            return str(Path(name).resolve())
-        root = Path(__file__).resolve().parent.parent / 'decoders' / 'bin'
-        for candidate in (name, name + '.exe'):
-            path = root / candidate
-            if path.is_file():
-                return str(path)
-        return ''
+        """Find tools in portable per-decoder folders, preserving their DLLs."""
+        from .decoder_locations import locate_decoder
+        return locate_decoder(name)
+
+    def open_decoder_project(self):
+        profile = DECODERS[self.decoder_combo.currentIndex()]
+        if profile.link:
+            QtGui.QDesktopServices.openUrl(QtCore.QUrl(profile.link))
 
     def browse_decoder_exe(self):
         path, _filter = QtWidgets.QFileDialog.getOpenFileName(
@@ -2274,7 +2280,10 @@ class Window(QtWidgets.QMainWindow):
             return
         if self.decoder and self.decoder.state() != QtCore.QProcess.NotRunning:
             return
-        if self.worker and self.worker.is_alive():
+        profile = DECODERS[self.decoder_combo.currentIndex()]
+        if self.worker and self.worker.is_alive() and profile.approach != 'audio/iq':
+            # A stream decoder or an externally controlled SDR needs exclusive
+            # USB ownership. A virtual-audio application needs RX to keep playing.
             self.pending_decoder = True
             self.stop_receiver()
         else:
@@ -2372,6 +2381,8 @@ class Window(QtWidgets.QMainWindow):
             self.on_status(f'Decoder niet gevonden: {exe}. Download en configureer eerst de externe tool.')
             return
         self.decoder = QtCore.QProcess(self)
+        self._decoder_output_pending = ''
+        self._active_external_decoder = profile.label
         self.decoder.setProcessChannelMode(QtCore.QProcess.MergedChannels)
         self.decoder.readyReadStandardOutput.connect(self.decoder_output)
         self.decoder.finished.connect(self.decoder_ended)
@@ -2386,19 +2397,29 @@ class Window(QtWidgets.QMainWindow):
         self.decoder.start()
         self.decoder_btn.setEnabled(False)
         self.decoder_stop.setEnabled(True)
-        self.start_btn.setEnabled(False)
+        if profile.approach != 'audio/iq':
+            self.start_btn.setEnabled(False)
         self.on_status(f'Externe decoder gestart: {exe} {self.decoder_args.text()}')
 
     def decoder_error(self, error):
         self.on_status(f'Decoderfout: {self.decoder.errorString()}')
         self.decoder_btn.setEnabled(True)
         self.decoder_stop.setEnabled(False)
-        self.start_btn.setEnabled(True)
+        self.start_btn.setEnabled(not (self.worker and self.worker.is_alive()))
 
     def decoder_output(self):
-        msg = bytes(self.decoder.readAllStandardOutput()).decode('utf-8', errors='replace').rstrip()
-        if msg:
-            self.log.appendPlainText(msg[-5000:])
+        # QProcess may deliver half a decoder line at a time. Only parse
+        # complete newline-delimited messages into protocol events.
+        msg = bytes(self.decoder.readAllStandardOutput()).decode('utf-8', errors='replace')
+        self._decoder_output_pending = (getattr(self, '_decoder_output_pending', '') + msg)[-32768:]
+        while '\n' in self._decoder_output_pending:
+            line, self._decoder_output_pending = self._decoder_output_pending.split('\n', 1)
+            line = line.strip()
+            if line:
+                self.log.appendPlainText(line[-5000:])
+                event = parse_decoder_line(self._active_external_decoder, line)
+                if event:
+                    self.on_decoder_event(event)
 
     def stop_decoder(self):
         if self.pending_decoder:
@@ -2417,9 +2438,15 @@ class Window(QtWidgets.QMainWindow):
             self.decoder.kill()
 
     def decoder_ended(self, exit_code, status):
+        if getattr(self, '_decoder_output_pending', '').strip():
+            line = self._decoder_output_pending.strip()
+            event = parse_decoder_line(self._active_external_decoder, line)
+            if event:
+                self.on_decoder_event(event)
+        self._decoder_output_pending = ''
         self.decoder_btn.setEnabled(True)
         self.decoder_stop.setEnabled(False)
-        self.start_btn.setEnabled(True)
+        self.start_btn.setEnabled(not (self.worker and self.worker.is_alive()))
         self.on_status(f'Externe decoder gestopt (exit {exit_code})')
 
     def closeEvent(self, event):

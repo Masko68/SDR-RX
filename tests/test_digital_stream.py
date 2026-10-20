@@ -108,7 +108,8 @@ def test_dsd_neo_voice_reader_handles_pcm_binary_without_text_decoding():
     from unittest.mock import patch
     from sdr_studio.decoder_catalog import Decoder
     class FakeOutput:
-        def __init__(self):
+        def __init__(self, channels=1):
+            self.channels = channels
             self.pcm = []
         def submit(self, a):
             self.pcm.append(a.copy())
@@ -127,4 +128,62 @@ def test_dsd_neo_voice_reader_handles_pcm_binary_without_text_decoding():
     assert worker.voice_output is not None
     assert worker.voice_output.pcm
     assert max(abs(x).max() for x in worker.voice_output.pcm) > 0
+    assert worker.voice_output.channels == 2
+    assert worker.voice_output.pcm[0].ndim == 2
+    assert worker.voice_output.pcm[0].shape[1] == 2
+    assert np.max(np.abs(worker.voice_output.pcm[0][:, 0])) > 0
+    assert np.max(np.abs(worker.voice_output.pcm[0][:, 1])) == 0
     assert not notes
+
+
+@pytest.mark.parametrize('source_rate', [2_400_000, 2_500_000])
+def test_dsd_neo_voice16_input_is_real_48khz_pcm(source_rate):
+    """Regression: DSD-neo must receive discriminator PCM, not IQ or None.
+
+    This is a synthetic FM transport test, *not* proof of decoding DMR/P25.
+    """
+    converter = StreamConverter(source_rate, 48_000, 'voice16')
+    frames = 65_536
+    t = np.arange(frames, dtype=np.float64) / source_rate
+    deviation = 2000 * np.sin(2*np.pi*900*t)
+    iq = np.exp(1j*2*np.pi*np.cumsum(deviation)/source_rate).astype(np.complex64)
+    pcm = converter.convert(iq)
+    assert len(pcm) >= 2000 and len(pcm) % 2 == 0
+    data = np.frombuffer(pcm, dtype='<i2')
+    assert len(data) == pytest.approx(frames * 48_000 / source_rate, abs=3)
+    assert np.ptp(data.astype(np.int32)) > 100
+
+
+def test_dsd_neo_protocol_parser_requires_explicit_sync():
+    """An RF peak or a mention of a protocol is not a confirmed frame."""
+    assert parse_decoder_line('DSD-neo · Digital Auto', 'possibly DMR detected by FFT') is None
+    assert parse_decoder_line('DSD-neo · Digital Auto', 'DMR no sync data') is None
+    assert parse_decoder_line('DSD-neo · Digital Auto', 'NXDN sync lost') is None
+    event = parse_decoder_line('DSD-neo · Digital Auto', 'DMR sync voice slot 1')
+    assert event is not None and event.protocol == 'DMR'
+
+
+def test_dsd_neo_mono_audio_remains_mono():
+    import io
+    from sdr_studio.decoder_catalog import Decoder
+
+    class FakeOutput:
+        def __init__(self, channels=1):
+            self.channels = channels
+            self.pcm = []
+        def submit(self, a):
+            self.pcm.append(a.copy())
+
+    profile = Decoder('DSD-neo · P25 fase I', 'P25', 'stream', 'dsd-neo',
+                      'audio', 'voice16', voice_flag='-f1', voice_channels=1)
+    worker = DigitalDecoderWorker(
+        profile=profile, exe='unused', frequency=145_000_000,
+        sample_rate=2_400_000, kind='Demo (geen hardware)', gain=None, device_id=None,
+        frame_callback=lambda *x: None, status_callback=lambda *x: None,
+        event_callback=lambda *x: None, ended_callback=lambda: None)
+    raw = np.full(800, 3000, dtype='<i2').tobytes()
+    with patch('sdr_studio.audio.AudioOutput', FakeOutput):
+        worker._voice_reader(io.BytesIO(raw))
+    assert worker.voice_output.channels == 1
+    assert worker.voice_output.pcm[0].ndim == 1
+    assert sum(block.shape[0] for block in worker.voice_output.pcm) == 800 * 6

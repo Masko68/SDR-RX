@@ -5,7 +5,7 @@ before returning from that callback: libairspy owns and reuses them. The receive
 thread owns the USB handle, and uses a bounded queue so DSP overload cannot
 consume unbounded RAM. No SoapySDR/Python Soapy bindings are necessary.
 
-Requires a trusted, x64 build of libairspy.dll and its matching dependencies.
+Requires a trusted, x64 build of airspy.dll (or libairspy.dll) and matching dependencies.
 API: https://github.com/airspy/airspyone_host/blob/master/libairspy/src/airspy.h
 """
 from __future__ import annotations
@@ -80,10 +80,10 @@ def load_library():
                             if (folder / name).is_file()]
     if not candidates_in_folder and not os.environ.get('SDRSTUDIO_AIRSPY_DLL'):
         raise AirspyError(
-            f'Geen libairspy.dll gevonden in {folder}. Download de officiële '
+            f'Geen airspy.dll of libairspy.dll gevonden in {folder}. Download de officiële '
             'Windows x64 AirSpy Host Tools (v1.0.10) via '
             'https://github.com/airspy/airspyone_host/releases en kopieer '
-            'libairspy.dll met de bijbehorende x64 afhankelijkheden '
+            'airspy.dll (of libairspy.dll) met de bijbehorende x64 afhankelijkheden '
             '(zoals libusb-1.0.dll) uit hetzelfde pakket naar de drivers-map.')
     raise AirspyError(
         'Airspy DLL gevonden, maar Windows kan hem niet laden of de API ontbreekt. '
