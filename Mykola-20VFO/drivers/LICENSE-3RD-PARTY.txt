@@ -1,0 +1,31 @@
+MYKOLA SDR - THIRD PARTY SOFTWARE NOTICES
+=========================================
+
+This software utilizes specific third-party libraries for hardware support.
+These libraries are loaded dynamically and are subject to their own licenses.
+
+1. librtlsdr (Driver for RTL2832U)
+   - License: GNU General Public License v2.0 or later (GPLv2+).
+   - Source Code: https://github.com/osmocom/rtl-sdr
+   - Copyright (C) 2012 by Steve Markgraf
+
+2. libhackrf (Driver for HackRF One)
+   - License: GNU General Public License v2.0 (GPLv2).
+   - Source Code: https://github.com/greatscottgadgets/hackrf
+   - Copyright (C) 2012 Jared Boone, Great Scott Gadgets
+
+3. libusb (USB access library)
+   - License: GNU Lesser General Public License v2.1 (LGPLv2.1).
+   - Source Code: https://github.com/libusb/libusb
+   - Copyright © 2001 Johannes Erdfelt
+
+4. libairspy (Driver for Airspy R2 / Mini)
+   - License: BSD 3-Clause License.
+   - Source Code: https://github.com/airspy/airspyone_host
+   - Copyright (C) 2012 Benjamin Vernoux
+   - Copyright (C) 2014 Youssef Touil
+
+Note on GPL/LGPL components:
+These libraries are used via dynamic linking mechanisms. This software is not 
+a derivative work of these libraries. You may obtain the complete source code 
+for these libraries from the URLs provided above.

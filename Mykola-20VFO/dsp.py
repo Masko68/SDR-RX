@@ -13,19 +13,30 @@ IF_RATE = 250_000
 
 
 class Demodulator:
-    def __init__(self, sample_rate: int, mode: str):
+    def __init__(self, sample_rate: int, mode: str, audio_filter: str = "Standaard"):
         if sample_rate % IF_RATE:
             raise ValueError(f"Sample-rate {sample_rate} must be divisible by {IF_RATE}")
         if mode not in ("AM", "NFM"):
             raise ValueError("Only AM and NFM supported")
         self.decimation = sample_rate // IF_RATE
         self.mode = mode
+        # Selectable voice-frequency filters, leaving v1.1 unchanged by default.
+        # The more selective profiles reduce hiss but cannot remove overlapping
+        # interference, and may soften speech consonants.
+        passbands = {
+            "Standaard": (300, 4500 if mode == "AM" else 3700),
+            "Spraak": (250, 3300 if mode == "AM" else 3200),
+            "Ruisarm": (300, 2550 if mode == "AM" else 2600),
+        }
+        if audio_filter not in passbands:
+            raise ValueError("Onbekend audiofilter")
+        self.audio_filter = audio_filter
         self.phase = 0.0
         self.previous = complex(1, 0)
         bandwidth = 6500 if mode == "AM" else 8000
         self.channel_taps = signal.firwin(129, bandwidth, fs=IF_RATE).astype(np.float64)
         self.channel_zi = np.zeros(len(self.channel_taps)-1, dtype=np.complex128)
-        self.audio_sos = signal.butter(3, [300, 4500 if mode == "AM" else 3700],
+        self.audio_sos = signal.butter(4 if audio_filter != "Standaard" else 3, passbands[audio_filter],
                                         btype="bandpass", fs=AUDIO_RATE, output="sos")
         self.audio_zi = signal.sosfilt_zi(self.audio_sos) * 0
         self.deemph_last = 0.0

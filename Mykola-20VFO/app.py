@@ -34,6 +34,7 @@ class VFOWidget:
         self.squelch = tk.StringVar(value=str(data.squelch_db))
         self.volume = tk.StringVar(value=str(data.volume))
         self.mute = tk.BooleanVar(value=data.mute)
+        self.auto_squelch = tk.BooleanVar(value=data.auto_squelch)
         tk.Checkbutton(self.frame, variable=self.enabled, bg=PANEL, activebackground=PANEL,
                        fg=FG, selectcolor=ROW).grid(row=0, column=0)
         tk.Label(self.frame, text=f"{index+1:02d}", bg=PANEL, fg=ORANGE, width=3,
@@ -44,12 +45,14 @@ class VFOWidget:
         cb.grid(row=0, column=4, padx=3)
         self.entry(self.frame, self.squelch, 7, 5, FONT)
         self.entry(self.frame, self.volume, 5, 6, FONT)
+        tk.Checkbutton(self.frame, variable=self.auto_squelch, bg=PANEL, activebackground=PANEL,
+                       fg=FG, selectcolor=ROW).grid(row=0, column=7, padx=3)
         tk.Checkbutton(self.frame, variable=self.mute, bg=PANEL, activebackground=PANEL,
-                       fg=FG, selectcolor=ROW).grid(row=0, column=7, padx=5)
+                       fg=FG, selectcolor=ROW).grid(row=0, column=8, padx=5)
         self.meter = ttk.Progressbar(self.frame, length=102, maximum=95)
-        self.meter.grid(row=0, column=8, padx=7)
-        self.status = tk.Label(self.frame, text="—", bg=PANEL, fg=MUTED, width=12, anchor="w", font=("Consolas", 9))
-        self.status.grid(row=0, column=9, padx=5)
+        self.meter.grid(row=0, column=9, padx=7)
+        self.status = tk.Label(self.frame, text="—", bg=PANEL, fg=MUTED, width=14, anchor="w", font=("Consolas", 9))
+        self.status.grid(row=0, column=10, padx=5)
         self.frame.columnconfigure(3, weight=1)
 
     def entry(self, parent, variable, width, column, font):
@@ -73,7 +76,8 @@ class VFOWidget:
         if self.enabled.get() and not 24 <= freq <= 1699.95:
             raise ValueError(f"VFO {self.index+1}: Gebruik 24 t/m 1699,95 MHz (IF-offset inbegrepen)")
         return VFO(frequency_mhz=freq, name=self.name.get(), mode=self.mode.get(),
-                   squelch_db=db, volume=vol, enabled=self.enabled.get(), mute=self.mute.get())
+                   squelch_db=db, volume=vol, enabled=self.enabled.get(), mute=self.mute.get(),
+                   auto_squelch=self.auto_squelch.get())
 
     def display(self, data: VFO) -> None:
         self.enabled.set(data.enabled)
@@ -83,12 +87,14 @@ class VFOWidget:
         self.squelch.set(str(data.squelch_db))
         self.volume.set(str(data.volume))
         self.mute.set(data.mute)
+        self.auto_squelch.set(data.auto_squelch)
         self.idle()
 
-    def update_signal(self, db: float, is_open: bool) -> None:
+    def update_signal(self, db: float, is_open: bool, threshold: float | None = None) -> None:
         # 0 -> -100 dBFS; a logarithmic signal bar for the tuned VFO.
         self.meter["value"] = max(0, min(95, db + 100))
-        self.status.configure(text=f"{db:5.1f} dBFS", fg=GREEN if is_open else ORANGE)
+        level = f"{db:5.1f}/{threshold:.0f} SQ" if threshold is not None else f"{db:5.1f} dBFS"
+        self.status.configure(text=level, fg=GREEN if is_open else ORANGE)
         self.frame.configure(bg="#1f3528" if is_open else PANEL)
 
     def idle(self) -> None:
@@ -100,9 +106,9 @@ class VFOWidget:
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("20 VFO Scanner v1.1 • Airspy R2 • Bewerkbare standalone versie")
-        self.geometry("1300x810")
-        self.minsize(950, 500)
+        self.title("20 VFO Scanner v1.2 • Airspy R2 • Bewerkbare standalone versie")
+        self.geometry("1430x810")
+        self.minsize(1050, 500)
         self.configure(bg=BG)
         self.settings = load()
         self.events: queue.Queue[dict] = queue.Queue()
@@ -126,7 +132,7 @@ class App(tk.Tk):
     def build(self):
         bar = tk.Frame(self, bg=PANEL, padx=12, pady=9)
         bar.pack(fill="x")
-        tk.Label(bar, text="20 VFO SCANNER v1.1", bg=PANEL, fg=FG,
+        tk.Label(bar, text="20 VFO SCANNER v1.2", bg=PANEL, fg=FG,
                  font=("Segoe UI", 18, "bold")).pack(side="left", padx=(4, 28))
         self.start_btn = tk.Button(bar, text="▶ START SCAN", command=self.start,
                                    bg="#1c8239", fg="white", relief="flat", padx=16, pady=8, font=("Segoe UI", 10, "bold"))
@@ -160,6 +166,18 @@ class App(tk.Tk):
                                       bg="#36587c", fg="white", relief="flat", padx=9, pady=4)
         self.squelch_btn.pack(side="left", padx=(12, 3))
 
+        filter_frame = tk.Frame(self, bg=BG, padx=15, pady=4)
+        filter_frame.pack(fill="x")
+        self.text_label(filter_frame, "Audiofilter").pack(side="left", padx=(0, 6))
+        self.filter_choice = tk.StringVar(value=self.settings.audio_filter)
+        ttk.Combobox(filter_frame, textvariable=self.filter_choice, state="readonly", width=13,
+                     values=["Standaard", "Spraak", "Ruisarm"]).pack(side="left", padx=(0, 15))
+        self.text_label(filter_frame, "Auto SQ-marge (dB)").pack(side="left", padx=(0, 6))
+        self.auto_margin = tk.StringVar(value=str(self.settings.auto_margin_db))
+        self.spin(filter_frame, self.auto_margin, 4, 20, 5)
+        tk.Label(filter_frame, text="Auto SQ per VFO aanvinken • drempel wordt uit ruisniveau bepaald",
+                 bg=BG, fg=MUTED, font=FONT).pack(side="left", padx=16)
+
         audio_frame = tk.Frame(self, bg=BG, padx=15, pady=4)
         audio_frame.pack(fill="x")
         self.text_label(audio_frame, "Geluidsuitgang").pack(side="left", padx=(0, 10))
@@ -179,7 +197,7 @@ class App(tk.Tk):
         headers = tk.Frame(self, bg=BG, padx=14)
         headers.pack(fill="x", pady=(7, 4))
         # Fixed headings aligned approximately with the scrollable fields.
-        tk.Label(headers, text="AAN       FREQUENTIE MHz       NAAM                 MOD       SQ dBFS     VOL     MUTE        SIGNAAL        STATUS",
+        tk.Label(headers, text="AAN       FREQUENTIE MHz       NAAM                 MOD       SQ dBFS     VOL    AUTO SQ  MUTE       SIGNAAL       NIVEAU / AUTO SQ",
                  bg=BG, fg=MUTED, anchor="w", font=("Consolas", 10, "bold")).pack(anchor="w")
 
         container = tk.Frame(self, bg=BG)
@@ -272,6 +290,15 @@ class App(tk.Tk):
     def snapshot(self) -> Settings:
         s = Settings(vfos=[row.snapshot() for row in self.widgets])
         s.demo = self.demo.get()
+        s.audio_filter = self.filter_choice.get()
+        if s.audio_filter not in ("Standaard", "Spraak", "Ruisarm"):
+            raise ValueError("Kies een geldig audiofilter")
+        try:
+            s.auto_margin_db = float(self.auto_margin.get().replace(",", "."))
+        except ValueError as exc:
+            raise ValueError("Auto SQ-marge moet een getal zijn") from exc
+        if not (4.0 <= s.auto_margin_db <= 20.0):
+            raise ValueError("Auto SQ-marge moet tussen 4 en 20 dB liggen")
         s.audio_device = self.selected_audio_device()
         s.sample_rate = int(self.rate.get())
         s.gain = max(0, min(21, int(self.gain.get())))
@@ -333,7 +360,7 @@ class App(tk.Tk):
                     self.progress.configure(text=f"VFO {self.active_index + 1:02d} / {SLOTS}")
                     self.status.configure(text=f"Scant VFO {self.active_index+1:02d}: {msg['frequency']:.4f} MHz", fg=ORANGE)
                 elif t == "signal":
-                    self.widgets[msg["index"]].update_signal(msg["level"], msg["open"])
+                    self.widgets[msg["index"]].update_signal(msg["level"], msg["open"], msg.get("threshold"))
                 elif t == "receiving":
                     self.status.configure(text=f"Audio actief: VFO {msg['index']+1:02d} • wacht tot signaal wegvalt", fg=GREEN)
                 elif t == "idle":
@@ -371,7 +398,8 @@ class App(tk.Tk):
                         squelch_db=float(row.get("squelch_db", "-55")),
                         volume=int(row.get("volume", "70")),
                         enabled=row.get("enabled", "1").lower() in ("1", "true", "ja", "yes"),
-                        mute=row.get("mute", "0").lower() in ("1", "true", "ja", "yes"))
+                        mute=row.get("mute", "0").lower() in ("1", "true", "ja", "yes"),
+                        auto_squelch=row.get("auto_squelch", "0").lower() in ("1", "true", "ja", "yes"))
                 if v.mode not in ("AM", "NFM"):
                     raise ValueError(f"Rij {i+1}: modus moet AM of NFM zijn")
                 new.append(v)
@@ -393,7 +421,7 @@ class App(tk.Tk):
         if not path:
             return
         with open(path, "w", encoding="utf-8-sig", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=["frequency_mhz", "name", "mode", "squelch_db", "volume", "enabled", "mute"])
+            writer = csv.DictWriter(f, fieldnames=["frequency_mhz", "name", "mode", "squelch_db", "volume", "enabled", "mute", "auto_squelch"])
             writer.writeheader()
             for v in settings.vfos:
                 writer.writerow(v.__dict__)

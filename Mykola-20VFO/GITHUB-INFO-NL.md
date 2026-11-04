@@ -1,1 +1,2 @@
-Broncode van Mykola 20 VFO v1.1. De meegeleverde Windows-DLL's en eventuele persoonlijke opnamen, logs en venv-mappen zijn bewust uitgesloten. Eigen instellingen blijven op de Windows-computer.
+Dit is uitsluitend de bewerkbare broncode van v1.2.
+Niet meegeleverd: externe Airspy-DLL's, virtuele Python-omgevingen, gegenereerde Python-bestanden, scanner-/startlogs en persoonlijke audio-opnamen.

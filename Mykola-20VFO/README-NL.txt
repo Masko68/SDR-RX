@@ -94,3 +94,31 @@ VERBETERINGEN v1.1 – SQ EN SCANSTABILITEIT
 - Broncode en softwaretests: python -m unittest discover -s tests -v
 - Deze versie is niet op een echte Airspy R2/Windows-installatie gevalideerd;
   bewaar de werkende vorige versie als reserve.
+
+
+VERBETERINGEN v1.2 – AUDIOFILTERS EN AUTO SQ
+==========================================
+- Voorkeuze Audiofilter boven de VFO-lijst:
+  * Standaard = exact de audiofilter-instellingen van v1.1 (veiligste beginstand).
+  * Spraak = ongeveer 250–3300 Hz (AM) of 250–3200 Hz (NFM).
+  * Ruisarm = ongeveer 300–2550 Hz (AM) of 300–2600 Hz (NFM).
+- Auto SQ is per VFO een apart vinkje. Het blijft standaard UIT.
+- Schakel Auto SQ alleen in op de gewenste VFO's. Zet de marge aanvankelijk op 8 dB.
+  Bij een te vaak openende squelch verhoog je de marge (bijv. 10–12 dB);
+  bij gemiste zwakke gesprekken verlaag je deze (bijv. 6 dB).
+- De scanner leert de achtergrondruis alleen uit metingen tijdens gesloten
+  squelch. Op drukke kanalen valt hij terug op je handmatig ingestelde SQ
+  totdat een rustige meting beschikbaar is. Zo wordt een gesprek minder snel
+  aangezien voor ruis en als referentie opgeslagen.
+- De indicator op de VFO geeft bij Auto SQ de sterkte/drempel weer:
+  bijvoorbeeld '-86/-78 SQ': niveau -86 dBFS, openingsdrempel -78 dBFS.
+- De geschatte ruis wordt tijdelijk per VFO in het draaiende scanproces
+  onthouden, maar is NIET permanent in vfo20.json opgeslagen.
+- Voor nieuwe versies: kopieer uitsluitend je eigen data/vfo20.json uit v1.1
+  naar de nieuwe map, met gesloten scanner. Oude JSON/CSV blijft leesbaar.
+- Een wijziging van filter of Auto SQ tijdens een lopende scan vereist STOP,
+  daarna START. De instellingen worden dan opgeslagen.
+- Eén Airspy R2 stemt de twintig kanalen na elkaar af; geen parallelle audio.
+- Simulatie: alleen testtonen. Metingen en hardwarekwaliteit vereisen de
+  echte Airspy R2 op de Windows-pc. V1.2 is niet fysiek gevalideerd.
+- Testen: python -m unittest discover -s tests -v (20 tests geslaagd).

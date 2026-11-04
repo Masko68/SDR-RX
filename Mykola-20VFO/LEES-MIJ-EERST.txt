@@ -23,3 +23,8 @@ Bij geen geluid stuur:
 Bij Python/startfout stuur start-log.txt. Dit project verandert je
 originele Mykola 1.5.90 FREE niet. Geluid op jouw Airspy R2 is niet op
 hardware geverifieerd; dit is een prototype.
+
+
+V1.2: extra menu Audiofilter (Standaard/Spraak/Ruisarm) en Auto SQ-vinkje per VFO.
+Start met filter Standaard en Auto SQ UIT; schakel daarna per VFO Auto SQ in.
+Bewaar de vorige werkende v1.1-map apart.

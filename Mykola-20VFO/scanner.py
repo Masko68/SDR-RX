@@ -117,6 +117,50 @@ class SquelchGate:
         return self.is_open
 
 
+class AdaptiveSquelch:
+    """Optional per-VFO noise-floor tracking, guarded against active transmissions.
+
+    A previously configured manual SQ is the fallback until a quiet reading
+    has been observed. Only readings below the CLOSED gate contribute to the
+    floor; strong transmissions never train the adaptive threshold upward.
+    """
+    def __init__(self, manual_db: float, enabled: bool = False, margin_db: float = 8.0,
+                 initial_noise_db: float | None = None):
+        self.manual_db = float(manual_db)
+        self.enabled = bool(enabled)
+        self.margin_db = max(4.0, min(20.0, float(margin_db)))
+        self.noise_floor_db = float(initial_noise_db) if initial_noise_db is not None else None
+        self.gate = SquelchGate(self.manual_db)
+        if self.enabled and self.noise_floor_db is not None:
+            self._refresh_threshold()
+
+    @property
+    def is_open(self) -> bool:
+        return self.gate.is_open
+
+    @property
+    def threshold_db(self) -> float:
+        return self.gate.threshold_db
+
+    def _refresh_threshold(self) -> None:
+        if self.enabled and self.noise_floor_db is not None:
+            self.gate.threshold_db = max(-100.0, min(-5.0, self.noise_floor_db + self.margin_db))
+
+    def update(self, db: float) -> bool:
+        if self.enabled and np.isfinite(db) and not self.gate.is_open:
+            if self.noise_floor_db is None:
+                # Tune-up on an occupied frequency must not be classified as noise.
+                if db <= self.manual_db - 2.0:
+                    self.noise_floor_db = float(db)
+            elif db <= self.gate.threshold_db - 2.0:
+                # Fast reaction when the channel quietens; slow upward tracking.
+                change = float(db) - self.noise_floor_db
+                alpha = 0.30 if change < 0 else 0.04
+                self.noise_floor_db += alpha * change
+            self._refresh_threshold()
+        return self.gate.update(db)
+
+
 class Scanner:
     def __init__(self, settings: Settings, events: queue.Queue[dict[str, Any]]):
         self.settings = settings
@@ -172,6 +216,7 @@ class Scanner:
                 self.emit("audio", text=f"GEEN GELUID: {exc}", ok=False)
                 audio = None
             self.emit("started", text="SIMULATIE: geen Airspy ontvangst" if self.settings.demo else "Airspy R2 hardware")
+            noise_memory: dict[int, float] = {}
             while not self.stop_flag.is_set():
                 for index, vfo in active:
                     if self.stop_flag.is_set():
@@ -180,8 +225,9 @@ class Scanner:
                         audio.flush()
                     center = round(vfo.frequency_mhz * 1_000_000) + IF_OFFSET_HZ
                     receiver.tune(center)
-                    demod = Demodulator(receiver.sample_rate, vfo.mode)
-                    gate = SquelchGate(vfo.squelch_db)
+                    demod = Demodulator(receiver.sample_rate, vfo.mode, self.settings.audio_filter)
+                    gate = AdaptiveSquelch(vfo.squelch_db, vfo.auto_squelch,
+                                           self.settings.auto_margin_db, noise_memory.get(index))
                     self.emit("tuned", index=index, frequency=vfo.frequency_mhz)
                     now = time.monotonic()
                     settle_until = now + 0.08
@@ -199,7 +245,7 @@ class Scanner:
                         was_open = gate.is_open
                         is_open = gate.update(db)
                         if not was_open and not is_open:
-                            if db >= vfo.squelch_db:
+                            if db >= gate.threshold_db:
                                 pre_audio.append(samples)
                             else:
                                 pre_audio.clear()
@@ -213,8 +259,11 @@ class Scanner:
                                 audio.push(samples, vfo.volume)
                         tick = time.monotonic()
                         if is_open != was_open or tick - last_ui >= 0.16:
-                            self.emit("signal", index=index, level=db, open=is_open)
+                            self.emit("signal", index=index, level=db, open=is_open,
+                                      threshold=gate.threshold_db if gate.enabled else None)
                             last_ui = tick
+                    if gate.enabled and gate.noise_floor_db is not None:
+                        noise_memory[index] = gate.noise_floor_db
                     if not found:
                         self.emit("idle", index=index, level=last_db)
                         continue
@@ -236,7 +285,8 @@ class Scanner:
                                 silent_since = time.monotonic()
                             tick = time.monotonic()
                             if is_open != was_open or tick - last_ui >= 0.16:
-                                self.emit("signal", index=index, level=db, open=is_open)
+                                self.emit("signal", index=index, level=db, open=is_open,
+                                      threshold=gate.threshold_db if gate.enabled else None)
                                 last_ui = tick
                         elif silent_since is None:
                             silent_since = time.monotonic()
@@ -244,6 +294,8 @@ class Scanner:
                             time.monotonic() - silent_since >= self.settings.resume_delay_ms / 1000.0
                         ):
                             break
+                    if gate.enabled and gate.noise_floor_db is not None:
+                        noise_memory[index] = gate.noise_floor_db
                     self.emit("idle", index=index, level=last_db)
         except Exception as exc:
             self.emit("error", text=str(exc))

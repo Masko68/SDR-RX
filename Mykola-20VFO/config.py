@@ -17,6 +17,7 @@ class VFO:
     volume: int = 70
     enabled: bool = False
     mute: bool = False
+    auto_squelch: bool = False  # Adaptive SQ per VFO; manual threshold remains the fallback.
 
     def valid(self) -> bool:
         return self.enabled and 24.0 <= self.frequency_mhz <= 1699.95 and self.mode in ("AM", "NFM")
@@ -31,6 +32,8 @@ class Settings:
     gain: int = 10
     demo: bool = True  # Start safely without grabbing hardware.
     audio_device: int | None = None  # None: default Windows playback device.
+    audio_filter: str = "Standaard"  # Standaard (v1.1), Spraak, Ruisarm
+    auto_margin_db: float = 8.0  # Minimum power over learned idle noise floor.
 
 
 def defaults() -> Settings:
@@ -57,6 +60,7 @@ def load(path: Path = DEFAULT_FILE) -> Settings:
             v = VFO(**{k: item[k] for k in VFO.__dataclass_fields__ if k in item})
             v.mode = v.mode if v.mode in ("AM", "NFM") else "AM"
             v.volume = max(0, min(100, int(v.volume)))
+            v.auto_squelch = bool(v.auto_squelch)
             v.squelch_db = max(-100.0, min(-5.0, float(v.squelch_db)))
             selected.append(v)
         while len(selected) < SLOTS:
@@ -67,6 +71,9 @@ def load(path: Path = DEFAULT_FILE) -> Settings:
         base.sample_rate = int(raw.get("sample_rate", base.sample_rate))
         base.gain = max(0, min(21, int(raw.get("gain", base.gain))))
         base.demo = bool(raw.get("demo", base.demo))
+        filt = str(raw.get("audio_filter", base.audio_filter))
+        base.audio_filter = filt if filt in ("Standaard", "Spraak", "Ruisarm") else "Standaard"
+        base.auto_margin_db = max(4.0, min(20.0, float(raw.get("auto_margin_db", base.auto_margin_db))))
         audio_device = raw.get("audio_device")
         base.audio_device = None if audio_device is None or audio_device == "" else int(audio_device)
         if base.audio_device is not None and base.audio_device < 0:
