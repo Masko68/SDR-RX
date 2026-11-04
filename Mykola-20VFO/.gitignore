@@ -1,0 +1,19 @@
+# Virtuele omgevingen
+.venv/
+.venv_20vfo/
+venv/
+# Python gegenereerde bestanden
+__pycache__/
+*.py[cod]
+.pytest_cache/
+# Windows en logs
+start-log.txt
+scanner-log.txt
+python-check.txt
+*.log
+Thumbs.db
+# Maak derde-partij binaries niet openbaar
+drivers/*.dll
+# Persoonlijke configuratie of geluidsopnamen
+*.wav
+*.iq

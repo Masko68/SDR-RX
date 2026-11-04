@@ -1,0 +1,11 @@
+MYKOLA 20 VFO - GEEN ECHT GELUID?
+================================
+A. Als 'Simulatie (zonder hardware)' aangevinkt is, is er alleen een
+testtoon. Schakel het uit voor radio-ontvangst met de Airspy R2.
+B. Test eerst Windows-geluid via de knop TEST GELUID. Selecteer eventueel
+je speakers of headset uit het menu Geluidsuitgang.
+C. Sluit andere software die de Airspy gebruikt. Zet de drie actieve
+luchtvaartkanalen op AM, volume 100, squelch -90 dBFS, mute uit.
+D. In scanner-log.txt staat of de Airspy en audio-uitgang zijn geopend.
+E. Geen spraak op een luchtvaartkanaal kan ook betekenen dat er tijdelijk
+geen uitzending plaatsvindt.

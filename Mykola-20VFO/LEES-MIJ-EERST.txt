@@ -1,0 +1,25 @@
+MYKOLA 20 VFO - AUDIOFIX (PYTHON 3.14, WINDOWS 64-BIT)
+====================================================
+
+1. Pak de volledige ZIP uit in een NIEUWE map.
+2. Open de map Mykola-20VFO-Audiofix-Python314.
+3. Dubbelklik op START-WINDOWS.bat.
+4. Klik in de app op TEST GELUID: je hoort twee tonen (650 en 880 Hz).
+5. Hoor je niets? Selecteer bij Geluidsuitgang jouw luidsprekers of headset
+   en klik opnieuw op TEST GELUID. Check het Windows-volume.
+6. Stop de scanner. Sluit de originele Mykola en SDR# volledig af.
+7. Haal het vinkje 'Simulatie (zonder hardware)' weg.
+8. Controleer of de status 'Airspy R2 hardware' zegt.
+9. Voor luchtvaart: AM, squelch eerst -90 dBFS, volume 100, mute uit.
+10. Klik START SCAN. Alleen aanwezige uitzendingen leveren spraak op.
+
+DE PIEP IN SIMULATIE IS GEEN RADIO-ONTVANGST.
+
+Bij geen geluid stuur:
+- screenshot van de scanner met status onderin,
+- scanner-log.txt (automatisch in deze map),
+- en vertel of TEST GELUID wel of niet hoorbaar is.
+
+Bij Python/startfout stuur start-log.txt. Dit project verandert je
+originele Mykola 1.5.90 FREE niet. Geluid op jouw Airspy R2 is niet op
+hardware geverifieerd; dit is een prototype.

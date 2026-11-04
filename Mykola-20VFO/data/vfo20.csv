@@ -1,0 +1,21 @@
+﻿frequency_mhz,name,mode,squelch_db,volume,enabled,mute
+125.005,Airband 1,AM,-55.0,70,True,False
+125.505,Airband 2,AM,-55.0,70,True,False
+124.58,Airband 3,AM,-55.0,70,True,False
+0.0,VFO 04,AM,-55.0,70,False,False
+0.0,VFO 05,AM,-55.0,70,False,False
+0.0,VFO 06,AM,-55.0,70,False,False
+0.0,VFO 07,AM,-55.0,70,False,False
+0.0,VFO 08,AM,-55.0,70,False,False
+0.0,VFO 09,AM,-55.0,70,False,False
+0.0,VFO 10,AM,-55.0,70,False,False
+0.0,VFO 11,AM,-55.0,70,False,False
+0.0,VFO 12,AM,-55.0,70,False,False
+0.0,VFO 13,AM,-55.0,70,False,False
+0.0,VFO 14,AM,-55.0,70,False,False
+0.0,VFO 15,AM,-55.0,70,False,False
+0.0,VFO 16,AM,-55.0,70,False,False
+0.0,VFO 17,AM,-55.0,70,False,False
+0.0,VFO 18,AM,-55.0,70,False,False
+0.0,VFO 19,AM,-55.0,70,False,False
+0.0,VFO 20,AM,-55.0,70,False,False
