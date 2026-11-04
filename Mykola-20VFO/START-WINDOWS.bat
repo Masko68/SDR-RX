@@ -10,7 +10,7 @@ set "VPY=%VENV%\Scripts\python.exe"
 >> "%LOG%" echo Datum: %DATE% %TIME%
 
 echo ==================================================
-echo   MYKOLA 20 VFO - AUDIOFIX PYTHON 3.14
+echo   MYKOLA 20 VFO v1.1 - SQ/SCANNER FIX PYTHON 3.14
 echo ==================================================
 echo Deze opdracht toont ook waarom starten mogelijk mislukt.
 echo Het oude Mykola-programma wordt niet aangepast.

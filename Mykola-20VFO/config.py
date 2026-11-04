@@ -13,7 +13,7 @@ class VFO:
     frequency_mhz: float = 0.0
     name: str = ""
     mode: str = "AM"
-    squelch_db: float = -55.0
+    squelch_db: float = -65.0
     volume: int = 70
     enabled: bool = False
     mute: bool = False
@@ -40,6 +40,7 @@ def defaults() -> Settings:
         channels[i].frequency_mhz = freq
         channels[i].name = f"Airband {i + 1}"
         channels[i].enabled = True
+        channels[i].squelch_db = -70.0
     return Settings(vfos=channels)
 
 

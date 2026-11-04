@@ -89,6 +89,34 @@ class AudioOutput:
             self.stream.close()
 
 
+class SquelchGate:
+    """Reject isolated peaks and avoid squelch chatter with 3 dB hysteresis.
+
+    Threshold is *not* recalibrated automatically; saved per-VFO thresholds
+    remain in full control. Two consecutive measurements are needed to open.
+    Once open, the gate stays open until the level falls 3 dB below SQ.
+    """
+    def __init__(self, threshold_db: float, confirm_frames: int = 2, hysteresis_db: float = 3.0):
+        self.threshold_db = threshold_db
+        self.confirm_frames = max(1, confirm_frames)
+        self.hysteresis_db = hysteresis_db
+        self.hits = 0
+        self.is_open = False
+
+    def update(self, db: float) -> bool:
+        if not np.isfinite(db):
+            db = -120.0
+        if self.is_open:
+            if db < self.threshold_db - self.hysteresis_db:
+                self.is_open = False
+                self.hits = 0
+        else:
+            self.hits = self.hits + 1 if db >= self.threshold_db else 0
+            if self.hits >= self.confirm_frames:
+                self.is_open = True
+        return self.is_open
+
+
 class Scanner:
     def __init__(self, settings: Settings, events: queue.Queue[dict[str, Any]]):
         self.settings = settings
@@ -153,48 +181,69 @@ class Scanner:
                     center = round(vfo.frequency_mhz * 1_000_000) + IF_OFFSET_HZ
                     receiver.tune(center)
                     demod = Demodulator(receiver.sample_rate, vfo.mode)
+                    gate = SquelchGate(vfo.squelch_db)
                     self.emit("tuned", index=index, frequency=vfo.frequency_mhz)
-                    started = time.monotonic()
-                    settle_until = started + 0.08
-                    end = started + self.settings.dwell_ms / 1000.0
-                    detected = False
+                    now = time.monotonic()
+                    settle_until = now + 0.08
+                    end = now + self.settings.dwell_ms / 1000.0
+                    last_ui = 0.0
                     last_db = -120.0
+                    found = False
+                    pre_audio: deque[np.ndarray] = deque(maxlen=2)
                     while time.monotonic() < end and not self.stop_flag.is_set():
-                        iq = receiver.read(timeout=0.1)
+                        iq = receiver.read(timeout=0.10)
                         if not len(iq) or time.monotonic() < settle_until:
                             continue
                         db, samples = demod.process(iq)
                         last_db = db
-                        detected |= db >= vfo.squelch_db
-                        self.emit("signal", index=index, level=db, open=detected)
-                        if detected and audio and not vfo.mute and db >= vfo.squelch_db:
-                            audio.push(samples, vfo.volume)
-                    if not detected:
+                        was_open = gate.is_open
+                        is_open = gate.update(db)
+                        if not was_open and not is_open:
+                            if db >= vfo.squelch_db:
+                                pre_audio.append(samples)
+                            else:
+                                pre_audio.clear()
+                        if is_open:
+                            found = True
+                            if audio and not vfo.mute:
+                                if not was_open:
+                                    for prior in pre_audio:
+                                        audio.push(prior, vfo.volume)
+                                    pre_audio.clear()
+                                audio.push(samples, vfo.volume)
+                        tick = time.monotonic()
+                        if is_open != was_open or tick - last_ui >= 0.16:
+                            self.emit("signal", index=index, level=db, open=is_open)
+                            last_ui = tick
+                    if not found:
                         self.emit("idle", index=index, level=last_db)
                         continue
-                    # Hold on this station until no signal has been detected for the tail interval.
+                    # Hold on station, with a quiet-time resume timer and hysteresis.
                     self.emit("receiving", index=index)
-                    silent_since = None
+                    silent_since = None if gate.is_open else time.monotonic()
                     while not self.stop_flag.is_set():
-                        iq = receiver.read(timeout=0.15)
-                        if not len(iq):
-                            if silent_since is None:
+                        iq = receiver.read(timeout=0.12)
+                        if len(iq):
+                            db, samples = demod.process(iq)
+                            last_db = db
+                            was_open = gate.is_open
+                            is_open = gate.update(db)
+                            if is_open:
+                                silent_since = None
+                                if audio and not vfo.mute:
+                                    audio.push(samples, vfo.volume)
+                            elif silent_since is None:
                                 silent_since = time.monotonic()
-                            if time.monotonic() - silent_since > self.settings.resume_delay_ms / 1000.0:
-                                break
-                            continue
-                        db, samples = demod.process(iq)
-                        open_squelch = db >= vfo.squelch_db
-                        self.emit("signal", index=index, level=db, open=open_squelch)
-                        if open_squelch:
-                            silent_since = None
-                            if audio and not vfo.mute:
-                                audio.push(samples, vfo.volume)
-                        else:
-                            if silent_since is None:
-                                silent_since = time.monotonic()
-                            if time.monotonic() - silent_since > self.settings.resume_delay_ms / 1000.0:
-                                break
+                            tick = time.monotonic()
+                            if is_open != was_open or tick - last_ui >= 0.16:
+                                self.emit("signal", index=index, level=db, open=is_open)
+                                last_ui = tick
+                        elif silent_since is None:
+                            silent_since = time.monotonic()
+                        if silent_since is not None and (
+                            time.monotonic() - silent_since >= self.settings.resume_delay_ms / 1000.0
+                        ):
+                            break
                     self.emit("idle", index=index, level=last_db)
         except Exception as exc:
             self.emit("error", text=str(exc))

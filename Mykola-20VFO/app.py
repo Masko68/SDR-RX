@@ -100,7 +100,7 @@ class VFOWidget:
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("20 VFO Scanner • Airspy R2 • Bewerkbare standalone versie")
+        self.title("20 VFO Scanner v1.1 • Airspy R2 • Bewerkbare standalone versie")
         self.geometry("1300x810")
         self.minsize(950, 500)
         self.configure(bg=BG)
@@ -126,7 +126,7 @@ class App(tk.Tk):
     def build(self):
         bar = tk.Frame(self, bg=PANEL, padx=12, pady=9)
         bar.pack(fill="x")
-        tk.Label(bar, text="20 VFO SCANNER", bg=PANEL, fg=FG,
+        tk.Label(bar, text="20 VFO SCANNER v1.1", bg=PANEL, fg=FG,
                  font=("Segoe UI", 18, "bold")).pack(side="left", padx=(4, 28))
         self.start_btn = tk.Button(bar, text="▶ START SCAN", command=self.start,
                                    bg="#1c8239", fg="white", relief="flat", padx=16, pady=8, font=("Segoe UI", 10, "bold"))
@@ -155,6 +155,10 @@ class App(tk.Tk):
         self.text_label(settings_frame, "Hervatten (ms)").pack(side="left", padx=5)
         self.tail = tk.StringVar(value=str(self.settings.resume_delay_ms))
         self.spin(settings_frame, self.tail, 100, 10000, 6)
+
+        self.squelch_btn = tk.Button(settings_frame, text="AM SQ → -70", command=self.apply_am_squelch,
+                                      bg="#36587c", fg="white", relief="flat", padx=9, pady=4)
+        self.squelch_btn.pack(side="left", padx=(12, 3))
 
         audio_frame = tk.Frame(self, bg=BG, padx=15, pady=4)
         audio_frame.pack(fill="x")
@@ -223,6 +227,18 @@ class App(tk.Tk):
         if device == -1:
             raise ValueError("Geen Windows-audioapparaat beschikbaar. Controleer speakers en stuur scanner-log.txt")
         return device
+
+    def apply_am_squelch(self):
+        """Set a practical starting threshold only for enabled AM channels."""
+        count = 0
+        for row in self.widgets:
+            if row.enabled.get() and row.mode.get() == "AM":
+                row.squelch.set("-70.0")
+                count += 1
+        if count:
+            self.status.configure(text=f"SQ -70 dBFS ingesteld voor {count} AM-VFO's. Klik Opslaan; bij actief scannen STOP/START.", fg=GREEN)
+        else:
+            self.status.configure(text="Geen ingeschakelde AM-VFO's gevonden.", fg=ORANGE)
 
     def test_audio(self):
         if self.scanner and self.scanner.thread and self.scanner.thread.is_alive():
@@ -297,8 +313,9 @@ class App(tk.Tk):
         self.status.configure(text="Scanner stoppen ...", fg=ORANGE)
 
     def poll_events(self):
+        # Prevent a busy receiver from starving Tk's button/scroll callbacks.
         try:
-            while True:
+            for _ in range(120):
                 msg = self.events.get_nowait()
                 t = msg["event"]
                 if t == "started":

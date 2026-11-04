@@ -74,3 +74,23 @@ AUDIOFIX - NOVEMBER 2026
   audioapparaat selecteert dat later wordt losgekoppeld.
 - De individuele VFO-volumes zijn geldig, maar na elkaar (geen 20 parallelle tuners).
 - Hardware ontvangst met je Airspy R2 is op jouw Windows-pc nog niet bevestigd.
+
+
+VERBETERINGEN v1.1 – SQ EN SCANSTABILITEIT
+==========================================
+- De oorspronkelijke werkende AM/NFM-demodulator en Windows-audio blijven behouden.
+- Losse piek van één IQ-blok opent de squelch niet meer; twee achtereenvolgende
+  metingen boven de ingestelde drempel zijn nodig (op sommige zwakke/korte
+  signalen kan hierdoor later worden gestopt).
+- 3 dB squelch-hysterese voorkomt snel open/dicht klapperen bij grenssignalen.
+- Audio-buffer van maximaal één voorgaand blok voorkomt dat de tweede
+  bevestigingsmeting het eerste stukje van een gesprek laat vallen.
+- Minder frequente signaalupdates voor een soepelere Windows-interface.
+- Nieuwe knop 'AM SQ → -70' stelt alleen de actieve AM-kanalen op -70 dBFS.
+  Daarna 'Opslaan' en, als er gescand wordt, STOP gevolgd door START.
+- Nieuwe voorbeeldfrequenties starten op SQ -70 dBFS. Je EIGEN opgeslagen
+  instellingen worden niet automatisch gewijzigd of gewist.
+- Controleer voor de echte Airspy: Simulatie UIT en Mykola/SDR# gesloten.
+- Broncode en softwaretests: python -m unittest discover -s tests -v
+- Deze versie is niet op een echte Airspy R2/Windows-installatie gevalideerd;
+  bewaar de werkende vorige versie als reserve.
