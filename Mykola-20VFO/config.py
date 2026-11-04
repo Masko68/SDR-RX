@@ -34,6 +34,9 @@ class Settings:
     audio_device: int | None = None  # None: default Windows playback device.
     audio_filter: str = "Standaard"  # Standaard (v1.1), Spraak, Ruisarm
     auto_margin_db: float = 8.0  # Minimum power over learned idle noise floor.
+    priority_vfo: int | None = None  # 0-based VFO; checked between regular scans.
+    priority_every: int = 3  # Check priority after this many normal VFOs.
+    record_audio: bool = False  # Opt-in: save received audio as local WAV files.
 
 
 def defaults() -> Settings:
@@ -68,6 +71,12 @@ def load(path: Path = DEFAULT_FILE) -> Settings:
         base.vfos = selected
         base.dwell_ms = max(100, min(2000, int(raw.get("dwell_ms", base.dwell_ms))))
         base.resume_delay_ms = max(100, min(10000, int(raw.get("resume_delay_ms", base.resume_delay_ms))))
+        raw_priority = raw.get("priority_vfo", None)
+        base.priority_vfo = None if raw_priority is None or raw_priority == "" else int(raw_priority)
+        if base.priority_vfo is not None and not 0 <= base.priority_vfo < SLOTS:
+            base.priority_vfo = None
+        base.priority_every = max(1, min(10, int(raw.get("priority_every", base.priority_every))))
+        base.record_audio = bool(raw.get("record_audio", False))
         base.sample_rate = int(raw.get("sample_rate", base.sample_rate))
         base.gain = max(0, min(21, int(raw.get("gain", base.gain))))
         base.demo = bool(raw.get("demo", base.demo))

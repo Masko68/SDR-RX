@@ -1,3 +1,10 @@
 .venv/
 __pycache__/
 *.pyc
+
+# v1.3: lokale opnamen en logs nooit committen
+opnames/
+*.wav
+start-log.txt
+scanner-log.txt
+*.tmp

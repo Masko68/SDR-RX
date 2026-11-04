@@ -106,7 +106,7 @@ class VFOWidget:
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("20 VFO Scanner v1.2 • Airspy R2 • Bewerkbare standalone versie")
+        self.title("20 VFO Scanner v1.3 • Airspy R2 • Bewerkbare standalone versie")
         self.geometry("1430x810")
         self.minsize(1050, 500)
         self.configure(bg=BG)
@@ -132,7 +132,7 @@ class App(tk.Tk):
     def build(self):
         bar = tk.Frame(self, bg=PANEL, padx=12, pady=9)
         bar.pack(fill="x")
-        tk.Label(bar, text="20 VFO SCANNER v1.2", bg=PANEL, fg=FG,
+        tk.Label(bar, text="20 VFO SCANNER v1.3", bg=PANEL, fg=FG,
                  font=("Segoe UI", 18, "bold")).pack(side="left", padx=(4, 28))
         self.start_btn = tk.Button(bar, text="▶ START SCAN", command=self.start,
                                    bg="#1c8239", fg="white", relief="flat", padx=16, pady=8, font=("Segoe UI", 10, "bold"))
@@ -158,9 +158,9 @@ class App(tk.Tk):
         self.text_label(settings_frame, "Scan/VFO (ms)").pack(side="left", padx=5)
         self.dwell = tk.StringVar(value=str(self.settings.dwell_ms))
         self.spin(settings_frame, self.dwell, 100, 2000, 6)
-        self.text_label(settings_frame, "Hervatten (ms)").pack(side="left", padx=5)
-        self.tail = tk.StringVar(value=str(self.settings.resume_delay_ms))
-        self.spin(settings_frame, self.tail, 100, 10000, 6)
+        self.text_label(settings_frame, "Na gesprek (s)").pack(side="left", padx=5)
+        self.tail = tk.StringVar(value=f"{self.settings.resume_delay_ms / 1000:g}")
+        self.spin(settings_frame, self.tail, 0.1, 10, 5, increment=0.5)
 
         self.squelch_btn = tk.Button(settings_frame, text="AM SQ → -70", command=self.apply_am_squelch,
                                       bg="#36587c", fg="white", relief="flat", padx=9, pady=4)
@@ -177,6 +177,23 @@ class App(tk.Tk):
         self.spin(filter_frame, self.auto_margin, 4, 20, 5)
         tk.Label(filter_frame, text="Auto SQ per VFO aanvinken • drempel wordt uit ruisniveau bepaald",
                  bg=BG, fg=MUTED, font=FONT).pack(side="left", padx=16)
+
+        priority_frame = tk.Frame(self, bg=BG, padx=15, pady=4)
+        priority_frame.pack(fill="x")
+        self.text_label(priority_frame, "Prioriteits-VFO").pack(side="left", padx=(0, 8))
+        self.priority_options = ["Geen"] + [f"VFO {i:02d}" for i in range(1, SLOTS + 1)]
+        self.priority_choice = tk.StringVar(value="Geen" if self.settings.priority_vfo is None
+                                            else f"VFO {self.settings.priority_vfo + 1:02d}")
+        ttk.Combobox(priority_frame, textvariable=self.priority_choice, state="readonly", width=9,
+                     values=self.priority_options).pack(side="left")
+        self.text_label(priority_frame, "Controleren elke N andere VFO's").pack(side="left", padx=(15, 6))
+        self.priority_every = tk.StringVar(value=str(self.settings.priority_every))
+        self.spin(priority_frame, self.priority_every, 1, 10, 4)
+        self.record_audio = tk.BooleanVar(value=self.settings.record_audio)
+        tk.Checkbutton(priority_frame, text="Automatisch WAV opnemen bij ontvangst", variable=self.record_audio,
+                       bg=BG, fg=FG, selectcolor=ROW, activebackground=BG).pack(side="left", padx=(22, 10))
+        tk.Label(priority_frame, text="Opnames lokaal in 'opnames/'", bg=BG, fg=MUTED,
+                 font=FONT).pack(side="left")
 
         audio_frame = tk.Frame(self, bg=BG, padx=15, pady=4)
         audio_frame.pack(fill="x")
@@ -224,6 +241,9 @@ class App(tk.Tk):
         self.audio_status = tk.Label(self, text="Audio: nog niet gestart. Controleer eerst met TEST GELUID.",
                                      bg=BG, fg=ORANGE, anchor="w", font=("Segoe UI", 9))
         self.audio_status.pack(fill="x", padx=15, pady=(0, 6))
+        self.record_status = tk.Label(self, text="Opname: uit (zet WAV opnemen aan voor lokale bestanden).",
+                                      bg=BG, fg=MUTED, anchor="w", font=("Segoe UI", 9))
+        self.record_status.pack(fill="x", padx=15, pady=(0, 6))
 
     def find_audio_devices(self):
         """Populate only real output-capable Windows devices."""
@@ -282,8 +302,8 @@ class App(tk.Tk):
     def mousewheel(self, event):
         self.canvas.yview_scroll(-1 * int(event.delta / 120), "units")
 
-    def spin(self, parent, var, low, high, width):
-        tk.Spinbox(parent, from_=low, to=high, textvariable=var, width=width,
+    def spin(self, parent, var, low, high, width, increment=1):
+        tk.Spinbox(parent, from_=low, to=high, increment=increment, textvariable=var, width=width,
                    bg=ROW, fg=FG, insertbackground=FG, buttonbackground=ROW,
                    relief="flat").pack(side="left")
 
@@ -302,10 +322,23 @@ class App(tk.Tk):
         s.audio_device = self.selected_audio_device()
         s.sample_rate = int(self.rate.get())
         s.gain = max(0, min(21, int(self.gain.get())))
-        s.dwell_ms = int(self.dwell.get())
-        s.resume_delay_ms = int(self.tail.get())
+        try:
+            s.dwell_ms = int(self.dwell.get())
+            s.resume_delay_ms = int(round(float(self.tail.get().replace(",", ".")) * 1000))
+            s.priority_every = int(self.priority_every.get())
+        except ValueError as exc:
+            raise ValueError("Controleer scan-, vertraging- en prioriteitswaarden") from exc
         if not (100 <= s.dwell_ms <= 2000 and 100 <= s.resume_delay_ms <= 10000):
-            raise ValueError("Scan/VFO en hervattijd vallen buiten hun toegestane bereik")
+            raise ValueError("Scan/VFO 100–2000 ms; scanvertraging 0,1–10 seconden")
+        if not 1 <= s.priority_every <= 10:
+            raise ValueError("Prioriteitscontrole: kies 1 t/m 10 VFO's")
+        selection = self.priority_choice.get()
+        if selection not in self.priority_options:
+            raise ValueError("Selecteer een geldige prioriteits-VFO")
+        s.priority_vfo = None if selection == "Geen" else self.priority_options.index(selection) - 1
+        if s.priority_vfo is not None and not s.vfos[s.priority_vfo].valid():
+            raise ValueError("Prioriteits-VFO moet ingeschakeld zijn en een geldige frequentie hebben")
+        s.record_audio = self.record_audio.get()
         return s
 
     def save(self):
@@ -333,6 +366,8 @@ class App(tk.Tk):
         self.stop_btn.configure(state="normal")
         self.status.configure(text="Ontvanger starten ...", fg=ORANGE)
         self.audio_status.configure(text="Audio: geluidsuitgang openen ...", fg=ORANGE)
+        self.record_status.configure(text="Opname: aan (lokaal in opnames/)" if self.settings.record_audio
+                                     else "Opname: uit", fg=ORANGE if self.settings.record_audio else MUTED)
 
     def stop(self):
         if self.scanner:
@@ -358,13 +393,20 @@ class App(tk.Tk):
                         self.widgets[self.active_index].idle()
                     self.active_index = msg["index"]
                     self.progress.configure(text=f"VFO {self.active_index + 1:02d} / {SLOTS}")
-                    self.status.configure(text=f"Scant VFO {self.active_index+1:02d}: {msg['frequency']:.4f} MHz", fg=ORANGE)
+                    priority = " [PRIORITEIT]" if msg.get("priority") else ""
+                    self.status.configure(text=f"Scant VFO {self.active_index+1:02d}: {msg['frequency']:.4f} MHz{priority}", fg=ORANGE)
                 elif t == "signal":
                     self.widgets[msg["index"]].update_signal(msg["level"], msg["open"], msg.get("threshold"))
                 elif t == "receiving":
                     self.status.configure(text=f"Audio actief: VFO {msg['index']+1:02d} • wacht tot signaal wegvalt", fg=GREEN)
                 elif t == "idle":
                     self.widgets[msg["index"]].idle()
+                elif t == "recording":
+                    self.record_status.configure(text=f"REC ● VFO {msg['index']+1:02d}: {msg['file']}", fg="#ff8a80")
+                elif t == "recorded":
+                    self.record_status.configure(text=f"Opname opgeslagen: {msg['file']}", fg=GREEN)
+                elif t == "recording_error":
+                    self.record_status.configure(text=f"Opnamefout: {msg['text']}", fg="#ff7070")
                 elif t == "message":
                     self.status.configure(text=msg["text"], fg=ORANGE)
                 elif t == "error":

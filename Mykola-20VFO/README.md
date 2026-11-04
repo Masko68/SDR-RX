@@ -1,32 +1,41 @@
-# Mykola 20 VFO Scanner — v1.2
+# Mykola 20 VFO scanner – v1.3
 
-Bewerkbare, zelfstandige scanner voor Windows 64-bit (Python 3.11–3.14) en Airspy R2/Mini.
-**Eén ontvanger scant maximaal 20 ingestelde VFO-frequenties na elkaar**; dit is geen uitbreiding of patch van `Mykola.exe`.
+**Losse, bewerkbare Python-Windows-scanner** voor Airspy R2/Mini, geen wijziging
+van het originele commerciële programma Mykola en geen extra VFO-ontgrendeling.
 
-## Nieuw in v1.2
+### Functies
+- 20 instelbare AM/NFM VFO-regels; **één Airspy stemt ze na elkaar af**.
+- Per VFO squelch (handmatig of Auto SQ), volume en mute.
+- Audiofilter: Standaard / Spraak / Ruisarm.
+- **v1.3**: `Na gesprek (s)` houdt de scanner na een wegvallend signaal 0,1–10 s vast;
+  begin met 2 of 3 seconden.
+- **v1.3**: optioneel prioriteitskanaal met controle na elke 1–10 normale VFO's.
+  Prioriteitscontrole gebeurt **alleen tussen scans / gesprekken**: met één
+  ontvanger kan niet gelijktijdig naar een ander kanaal worden geluisterd.
+- **v1.3**: optioneel WAV opnemen van squelch-actieve audio, PCM 48 kHz, mono,
+  16-bit. WAV wordt in `opnames/` gezet, ook als de luidspreker-MUTE aan staat.
+  Opnemen staat standaard **uit**; er wordt niets geüpload naar GitHub.
 
-- **Audiofilter:** `Standaard` (origineel v1.1), `Spraak` en `Ruisarm`, AM en NFM.
-- **Auto SQ per VFO**, optioneel en standaard uit. Leert achtergrondruis tijdens gesloten squelch en hanteert een instelbare marge (standaard 8 dB); valt terug op de handmatige SQ totdat een rustige meting is gezien.
-- Behoud van v1.1: 20 VFO-regels, squelch-hysterese, testaudio, scan-hervatvertraging, CSV import/export en Windows-logbestanden.
-- Achterwaartse compatibiliteit met `data/vfo20.json` uit v1.1.
+### Windows-start
+1. Pak de Windows-ZIP uit in een **nieuwe** map (bewaar v1.2).
+2. Kopieer eventueel je eigen `data/vfo20.json` uit de werkende versie.
+3. Dubbelklik `START-WINDOWS.bat` (Python 3.11–3.14, 64-bit).
+4. Bij echte ontvangst: andere SDR-software sluiten en `Simulatie` uitvinken.
+5. Bij opname: vink **Automatisch WAV opnemen** aan en herstart de scan.
 
-## Installatie
+De externe Airspy/USB DLL's worden niet in deze GitHub-broncode opgenomen.
+De Windows-versie behoudt de lokaal aangeleverde DLL's. Hardwareontvangst
+met v1.3 is nog niet onafhankelijk getest; v1.2 werkte bij de gebruiker.
 
-1. Download de *Windows-versie* uit de ChatGPT-projectbestanden en pak hem uit in een nieuwe map.
-2. Bewaar de oude v1.1-map. Kopieer indien gewenst je persoonlijke `data/vfo20.json` naar de nieuwe map.
-3. Sluit andere programma's die de Airspy gebruiken en dubbelklik op `START-WINDOWS.bat`.
-4. Test `TEST GELUID`, schakel simulatie uit voor echte ontvangst, kies een audiofilter en vink `AUTO SQ` aan voor de VFO's die automatische squelch moeten gebruiken.
-5. Wijzigingen gaan in na **STOP** en opnieuw **START**.
+Gebruik opname en delen van opgenomen communicatie alleen waar dat wettelijk
+is toegestaan en met respect voor privacy.
 
-**Drivers:** de Windows-uitgave bevat de door de gebruiker aangeleverde Airspy-DLL's. Deze broncode-repository bevat *geen* externe DLL's. Plaats op een nieuwe Windows-installatie geschikte libairspy x64-DLL's in `drivers/` volgens `drivers/README.txt`.
-
-## Ontwikkeling en tests
-
-```powershell
+### Broncode en tests
+```
 python -m pip install -r requirements.txt
 python -m unittest discover -s tests -v
+python app.py
 ```
 
-20 softwaretests geslaagd bij oplevering. GUI-start gecontroleerd met een virtueel scherm. **Echte Airspy R2-ontvangst in v1.2 moet nog door de gebruiker worden getest**; v1.1 was bij de gebruiker werkend.
-
-Het project is onafhankelijk van Mykola FREE en verleent geen rechten op externe Mykola-bestanden of Airspy-driverbibliotheken.
+De **29 automatische tests** (inclusief een gesimuleerde WAV-opname) slagen
+op de ontwikkelomgeving. Zie `README-NL.txt` voor de volledige handleiding.

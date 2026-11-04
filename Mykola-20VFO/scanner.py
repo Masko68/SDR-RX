@@ -2,13 +2,16 @@
 from __future__ import annotations
 from collections import deque
 import logging
+import re
+import wave
+from datetime import datetime
 from pathlib import Path
 import queue
 import threading
 import time
 from typing import Any
 import numpy as np
-from config import Settings
+from config import Settings, VFO
 from dsp import Demodulator, IF_OFFSET_HZ, AUDIO_RATE
 from radio import AirspyReceiver, DemoReceiver
 
@@ -161,6 +164,73 @@ class AdaptiveSquelch:
         return self.gate.update(db)
 
 
+
+
+def scan_pass(active: list[tuple[int, VFO]], priority_vfo: int | None,
+              priority_every: int = 3) -> list[tuple[int, VFO]]:
+    """Visit the priority channel first and then again between normal channels.
+
+    A priority probe uses the same single tuner. While a conversation is held,
+    priority checks wait until that conversation finishes (no audio chopping).
+    """
+    entries = list(active)
+    if priority_vfo is None or priority_vfo not in {i for i, _ in entries}:
+        return entries
+    priority = next(item for item in entries if item[0] == priority_vfo)
+    others = [item for item in entries if item[0] != priority_vfo]
+    if not others:
+        return [priority]
+    result = [priority]
+    for n, item in enumerate(others, start=1):
+        result.append(item)
+        if n % max(1, priority_every) == 0 and n < len(others):
+            result.append(priority)
+    return result
+
+
+class WAVRecorder:
+    """Save demodulated, post-filter audio in local 16-bit mono PCM WAV files.
+
+    Recording is opt-in. It is not affected by speaker mute/volume, so muted
+    channels can still be recorded. The filenames cannot escape recordings dir.
+    """
+    def __init__(self, index: int, vfo: VFO, demo: bool = False,
+                 root: Path | None = None):
+        folder = Path(root) if root is not None else Path(__file__).resolve().parent / "opnames"
+        folder.mkdir(parents=True, exist_ok=True)
+        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")[:19]
+        label = re.sub(r"[^A-Za-z0-9_-]", "_", vfo.name)[:32].strip("_") or "Kanaal"
+        frequency = round(vfo.frequency_mhz * 1_000_000)
+        marker = "DEMO-" if demo else ""
+        self.path = folder / f"{timestamp}-{marker}VFO{index + 1:02d}-{frequency}Hz-{label}.wav"
+        self.wav = wave.open(str(self.path), "wb")
+        self.wav.setnchannels(1)
+        self.wav.setsampwidth(2)
+        self.wav.setframerate(AUDIO_RATE)
+        self.frames = 0
+        self.closed = False
+
+    def push(self, samples: np.ndarray) -> None:
+        if self.closed:
+            return
+        audio = np.asarray(samples, dtype=np.float32)
+        if not audio.size:
+            return
+        audio = np.nan_to_num(audio, nan=0, posinf=1, neginf=-1)
+        pcm = (np.clip(audio, -1, 1) * 32767.0).astype("<i2", copy=False)
+        self.wav.writeframesraw(pcm.tobytes())
+        self.frames += len(pcm)
+
+    def close(self) -> Path | None:
+        if self.closed:
+            return self.path if self.frames else None
+        self.closed = True
+        self.wav.close()
+        if not self.frames:
+            self.path.unlink(missing_ok=True)
+            return None
+        return self.path
+
 class Scanner:
     def __init__(self, settings: Settings, events: queue.Queue[dict[str, Any]]):
         self.settings = settings
@@ -198,6 +268,7 @@ class Scanner:
     def _run(self) -> None:
         receiver = None
         audio = None
+        recorder: WAVRecorder | None = None
         try:
             active = [(i, v) for i, v in enumerate(self.settings.vfos) if v.valid()]
             if not active:
@@ -218,7 +289,7 @@ class Scanner:
             self.emit("started", text="SIMULATIE: geen Airspy ontvangst" if self.settings.demo else "Airspy R2 hardware")
             noise_memory: dict[int, float] = {}
             while not self.stop_flag.is_set():
-                for index, vfo in active:
+                for index, vfo in scan_pass(active, self.settings.priority_vfo, self.settings.priority_every):
                     if self.stop_flag.is_set():
                         break
                     if audio:
@@ -228,7 +299,8 @@ class Scanner:
                     demod = Demodulator(receiver.sample_rate, vfo.mode, self.settings.audio_filter)
                     gate = AdaptiveSquelch(vfo.squelch_db, vfo.auto_squelch,
                                            self.settings.auto_margin_db, noise_memory.get(index))
-                    self.emit("tuned", index=index, frequency=vfo.frequency_mhz)
+                    self.emit("tuned", index=index, frequency=vfo.frequency_mhz,
+                              priority=(index == self.settings.priority_vfo))
                     now = time.monotonic()
                     settle_until = now + 0.08
                     end = now + self.settings.dwell_ms / 1000.0
@@ -236,6 +308,26 @@ class Scanner:
                     last_db = -120.0
                     found = False
                     pre_audio: deque[np.ndarray] = deque(maxlen=2)
+                    recording_failed = False
+
+                    def record(block: np.ndarray) -> None:
+                        nonlocal recorder, recording_failed
+                        if not self.settings.record_audio or recording_failed or not len(block):
+                            return
+                        try:
+                            if recorder is None:
+                                recorder = WAVRecorder(index, vfo, self.settings.demo)
+                                self.emit("recording", index=index, file=recorder.path.name)
+                            recorder.push(block)
+                        except (OSError, ValueError, wave.Error) as exc:
+                            recording_failed = True
+                            self.emit("recording_error", text=str(exc))
+                            if recorder is not None:
+                                try:
+                                    recorder.close()
+                                except Exception:
+                                    pass
+                                recorder = None
                     while time.monotonic() < end and not self.stop_flag.is_set():
                         iq = receiver.read(timeout=0.10)
                         if not len(iq) or time.monotonic() < settle_until:
@@ -251,12 +343,15 @@ class Scanner:
                                 pre_audio.clear()
                         if is_open:
                             found = True
-                            if audio and not vfo.mute:
-                                if not was_open:
-                                    for prior in pre_audio:
+                            if not was_open:
+                                for prior in pre_audio:
+                                    if audio and not vfo.mute:
                                         audio.push(prior, vfo.volume)
-                                    pre_audio.clear()
+                                    record(prior)
+                                pre_audio.clear()
+                            if audio and not vfo.mute:
                                 audio.push(samples, vfo.volume)
+                            record(samples)
                         tick = time.monotonic()
                         if is_open != was_open or tick - last_ui >= 0.16:
                             self.emit("signal", index=index, level=db, open=is_open,
@@ -281,6 +376,7 @@ class Scanner:
                                 silent_since = None
                                 if audio and not vfo.mute:
                                     audio.push(samples, vfo.volume)
+                                record(samples)
                             elif silent_since is None:
                                 silent_since = time.monotonic()
                             tick = time.monotonic()
@@ -296,10 +392,25 @@ class Scanner:
                             break
                     if gate.enabled and gate.noise_floor_db is not None:
                         noise_memory[index] = gate.noise_floor_db
+                    if recorder is not None:
+                        try:
+                            path = recorder.close()
+                            if path is not None:
+                                self.emit("recorded", index=index, file=path.name)
+                        except OSError as exc:
+                            self.emit("recording_error", text=str(exc))
+                        recorder = None
                     self.emit("idle", index=index, level=last_db)
         except Exception as exc:
             self.emit("error", text=str(exc))
         finally:
+            if recorder is not None:
+                try:
+                    path = recorder.close()
+                    if path is not None:
+                        self.emit("recorded", file=path.name)
+                except Exception as exc:
+                    LOG.warning("Opname sluiten mislukt: %s", exc)
             if audio:
                 try:
                     audio.close()

@@ -122,3 +122,26 @@ VERBETERINGEN v1.2 – AUDIOFILTERS EN AUTO SQ
 - Simulatie: alleen testtonen. Metingen en hardwarekwaliteit vereisen de
   echte Airspy R2 op de Windows-pc. V1.2 is niet fysiek gevalideerd.
 - Testen: python -m unittest discover -s tests -v (20 tests geslaagd).
+
+
+VERBETERINGEN v1.3 – PRIORITEIT, SCANVERTRAGING EN WAV-OPNAME
+=============================================================
+- 'Na gesprek (s)' is de tijd die de scanner wacht nadat de squelch sluit.
+  Standaard: 1.0 seconde. Probeer 2 tot 3 s om pauzes in gesprekken te overbruggen.
+  De opgeslagen sleutel blijft 'resume_delay_ms', zodat oude data/vfo20.json werkt.
+- Kies een ingeschakelde VFO bij 'Prioriteits-VFO' en controleer die na
+  iedere 1-10 andere VFO's (standaard: na 3). De prioriteits-VFO wordt ook
+  aan het begin van de scanronde gecontroleerd.
+- Met één Airspy kan de prioriteit NIET tijdens een lopend gesprek op een
+  ander kanaal worden gecontroleerd. Dit voorkomt dat audio wordt onderbroken.
+- WAV-opname staat standaard UIT. Zet 'Automatisch WAV opnemen bij ontvangst'
+  aan en klik STOP/START voor de nieuwe instelling. Tijdens een gesprek wordt
+  audio na squelch-detectie opgeslagen als PCM WAV, 48 kHz mono 16-bit.
+- De opnames staan uitsluitend in de lokale map 'opnames/' van deze versie.
+  De bestanden worden NIET naar GitHub geüpload. Verwijder ze zelf naar wens.
+  Opname staat los van luidspreker-MUTE en het ingestelde volume per VFO.
+- In simulatie worden de opnamebestanden gemarkeerd met 'DEMO'.
+- Controleer lokale regels en privacy als je opnames maakt of deelt.
+- Start met de werkende v1.2-instellingen: filter en Auto SQ zijn niet gewijzigd.
+- Deze versie is automatisch getest, maar v1.3 moet nog met jouw eigen
+  Airspy R2 en Windows-geluid worden gecontroleerd. Bewaar v1.2 als reserve.

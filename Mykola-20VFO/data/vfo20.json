@@ -7,7 +7,8 @@
       "squelch_db": -70.0,
       "volume": 70,
       "enabled": true,
-      "mute": false
+      "mute": false,
+      "auto_squelch": false
     },
     {
       "frequency_mhz": 125.505,
@@ -16,7 +17,8 @@
       "squelch_db": -70.0,
       "volume": 70,
       "enabled": true,
-      "mute": false
+      "mute": false,
+      "auto_squelch": false
     },
     {
       "frequency_mhz": 124.58,
@@ -25,7 +27,8 @@
       "squelch_db": -70.0,
       "volume": 70,
       "enabled": true,
-      "mute": false
+      "mute": false,
+      "auto_squelch": false
     },
     {
       "frequency_mhz": 0.0,
@@ -34,7 +37,8 @@
       "squelch_db": -55.0,
       "volume": 70,
       "enabled": false,
-      "mute": false
+      "mute": false,
+      "auto_squelch": false
     },
     {
       "frequency_mhz": 0.0,
@@ -43,7 +47,8 @@
       "squelch_db": -55.0,
       "volume": 70,
       "enabled": false,
-      "mute": false
+      "mute": false,
+      "auto_squelch": false
     },
     {
       "frequency_mhz": 0.0,
@@ -52,7 +57,8 @@
       "squelch_db": -55.0,
       "volume": 70,
       "enabled": false,
-      "mute": false
+      "mute": false,
+      "auto_squelch": false
     },
     {
       "frequency_mhz": 0.0,
@@ -61,7 +67,8 @@
       "squelch_db": -55.0,
       "volume": 70,
       "enabled": false,
-      "mute": false
+      "mute": false,
+      "auto_squelch": false
     },
     {
       "frequency_mhz": 0.0,
@@ -70,7 +77,8 @@
       "squelch_db": -55.0,
       "volume": 70,
       "enabled": false,
-      "mute": false
+      "mute": false,
+      "auto_squelch": false
     },
     {
       "frequency_mhz": 0.0,
@@ -79,7 +87,8 @@
       "squelch_db": -55.0,
       "volume": 70,
       "enabled": false,
-      "mute": false
+      "mute": false,
+      "auto_squelch": false
     },
     {
       "frequency_mhz": 0.0,
@@ -88,7 +97,8 @@
       "squelch_db": -55.0,
       "volume": 70,
       "enabled": false,
-      "mute": false
+      "mute": false,
+      "auto_squelch": false
     },
     {
       "frequency_mhz": 0.0,
@@ -97,7 +107,8 @@
       "squelch_db": -55.0,
       "volume": 70,
       "enabled": false,
-      "mute": false
+      "mute": false,
+      "auto_squelch": false
     },
     {
       "frequency_mhz": 0.0,
@@ -106,7 +117,8 @@
       "squelch_db": -55.0,
       "volume": 70,
       "enabled": false,
-      "mute": false
+      "mute": false,
+      "auto_squelch": false
     },
     {
       "frequency_mhz": 0.0,
@@ -115,7 +127,8 @@
       "squelch_db": -55.0,
       "volume": 70,
       "enabled": false,
-      "mute": false
+      "mute": false,
+      "auto_squelch": false
     },
     {
       "frequency_mhz": 0.0,
@@ -124,7 +137,8 @@
       "squelch_db": -55.0,
       "volume": 70,
       "enabled": false,
-      "mute": false
+      "mute": false,
+      "auto_squelch": false
     },
     {
       "frequency_mhz": 0.0,
@@ -133,7 +147,8 @@
       "squelch_db": -55.0,
       "volume": 70,
       "enabled": false,
-      "mute": false
+      "mute": false,
+      "auto_squelch": false
     },
     {
       "frequency_mhz": 0.0,
@@ -142,7 +157,8 @@
       "squelch_db": -55.0,
       "volume": 70,
       "enabled": false,
-      "mute": false
+      "mute": false,
+      "auto_squelch": false
     },
     {
       "frequency_mhz": 0.0,
@@ -151,7 +167,8 @@
       "squelch_db": -55.0,
       "volume": 70,
       "enabled": false,
-      "mute": false
+      "mute": false,
+      "auto_squelch": false
     },
     {
       "frequency_mhz": 0.0,
@@ -160,7 +177,8 @@
       "squelch_db": -55.0,
       "volume": 70,
       "enabled": false,
-      "mute": false
+      "mute": false,
+      "auto_squelch": false
     },
     {
       "frequency_mhz": 0.0,
@@ -169,7 +187,8 @@
       "squelch_db": -55.0,
       "volume": 70,
       "enabled": false,
-      "mute": false
+      "mute": false,
+      "auto_squelch": false
     },
     {
       "frequency_mhz": 0.0,
@@ -178,12 +197,19 @@
       "squelch_db": -55.0,
       "volume": 70,
       "enabled": false,
-      "mute": false
+      "mute": false,
+      "auto_squelch": false
     }
   ],
   "dwell_ms": 250,
   "resume_delay_ms": 1000,
   "sample_rate": 2500000,
   "gain": 10,
-  "demo": true
+  "demo": true,
+  "audio_device": null,
+  "audio_filter": "Standaard",
+  "auto_margin_db": 8.0,
+  "priority_vfo": null,
+  "priority_every": 3,
+  "record_audio": false
 }

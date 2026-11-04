@@ -28,3 +28,12 @@ hardware geverifieerd; dit is een prototype.
 V1.2: extra menu Audiofilter (Standaard/Spraak/Ruisarm) en Auto SQ-vinkje per VFO.
 Start met filter Standaard en Auto SQ UIT; schakel daarna per VFO Auto SQ in.
 Bewaar de vorige werkende v1.1-map apart.
+
+
+V1.3 - NIEUW
+===========
+Scanvertraging: stel Na gesprek (s) in op bijvoorbeeld 2 of 3.
+Prioriteit: kies VFO 01–20 (alleen een ingeschakelde geldige VFO).
+Opname: zet Automatisch WAV opnemen aan; de bestanden komen in opnames/.
+Belangrijk: een lopend gesprek wordt niet onderbroken voor prioriteitscontrole.
+Bewaar je v1.2-map, neem alleen je eigen data/vfo20.json mee uit die map.
