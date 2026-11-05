@@ -7,6 +7,7 @@ from __future__ import annotations
 import ctypes as ct
 import os
 from pathlib import Path
+from runtime_paths import driver_dir as airspy_driver_directory
 import queue
 import time
 import numpy as np
@@ -34,7 +35,7 @@ class AirspyReceiver:
         self._queue: queue.Queue[np.ndarray] = queue.Queue(maxsize=64)
         self._callback = None
         self._active = False
-        driver_dir = Path(__file__).resolve().parent / "drivers"
+        driver_dir = airspy_driver_directory()
         if os.name != "nt":
             raise RuntimeError("De Airspy-DLL werkt alleen onder Windows; gebruik Simulatie op dit systeem.")
         if hasattr(os, "add_dll_directory"):

@@ -1,0 +1,13 @@
+MYKOLA 20 VFO v1.3.2 — 5 november 2026
+
+1. WAV-opname direct in- of uitschakelen tijdens de lopende scan.
+2. Een reeds geopend WAV-bestand wordt bij uitschakelen veilig afgesloten.
+3. Rode REC-status tijdens opname; status wacht/opname uit wordt onderscheiden.
+4. Knop Open opnamemap.
+5. Laatst opgeslagen WAV-bestand zichtbaar in de onderregel.
+6. Audio-status zegt niet langer ten onrechte hoorbaar bij MUTE of volume 0.
+7. De scan-, prioriteits-, squelch- en filterfuncties uit v1.3.1 zijn behouden.
+
+31 tests geslaagd; ook live starten/staken van WAV getest met een testontvanger.
+Echte Airspy R2-audio/scan moet op de Windows-pc bevestigd worden.
+Bewaar de werkende v1.3.1-map en kopieer je data/vfo20.json als nodig.

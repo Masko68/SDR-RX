@@ -3,9 +3,10 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 import json
 from pathlib import Path
+from runtime_paths import app_dir
 
 SLOTS = 20
-DEFAULT_FILE = Path(__file__).resolve().parent / "data" / "vfo20.json"
+DEFAULT_FILE = app_dir() / "data" / "vfo20.json"
 
 
 @dataclass

@@ -1,0 +1,4 @@
+v1.3.1
+- Ondere statusregels duidelijker: Audio-uitgang en WAV-opname apart.
+- Audio-status toont actiever welke VFO hoorbaar is.
+- Bovenste keuzelijsten en invulvakken hebben zwarte tekst voor betere leesbaarheid.

@@ -6,6 +6,7 @@ import re
 import wave
 from datetime import datetime
 from pathlib import Path
+from runtime_paths import app_dir
 import queue
 import threading
 import time
@@ -18,7 +19,7 @@ from radio import AirspyReceiver, DemoReceiver
 
 LOG = logging.getLogger("mykola20vfo")
 if not LOG.handlers:
-    handler = logging.FileHandler(Path(__file__).resolve().parent / "scanner-log.txt", encoding="utf-8")
+    handler = logging.FileHandler(app_dir() / "scanner-log.txt", encoding="utf-8")
     handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
     LOG.addHandler(handler)
     LOG.setLevel(logging.INFO)
@@ -196,7 +197,7 @@ class WAVRecorder:
     """
     def __init__(self, index: int, vfo: VFO, demo: bool = False,
                  root: Path | None = None):
-        folder = Path(root) if root is not None else Path(__file__).resolve().parent / "opnames"
+        folder = Path(root) if root is not None else app_dir() / "opnames"
         folder.mkdir(parents=True, exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")[:19]
         label = re.sub(r"[^A-Za-z0-9_-]", "_", vfo.name)[:32].strip("_") or "Kanaal"
@@ -237,6 +238,22 @@ class Scanner:
         self.events = events
         self.stop_flag = threading.Event()
         self.thread: threading.Thread | None = None
+        # Can be changed from the GUI while the receiver thread is running.
+        # The receiver thread alone opens/closes WAV files to avoid races.
+        self._record_enabled = threading.Event()
+        if settings.record_audio:
+            self._record_enabled.set()
+
+    @property
+    def recording_enabled(self) -> bool:
+        return self._record_enabled.is_set()
+
+    def set_recording(self, enabled: bool) -> None:
+        """Arm or disarm WAV recording without restarting the Airspy stream."""
+        if enabled:
+            self._record_enabled.set()
+        else:
+            self._record_enabled.clear()
 
     @staticmethod
     def test_audio(device: int | None = None) -> str:
@@ -269,6 +286,20 @@ class Scanner:
         receiver = None
         audio = None
         recorder: WAVRecorder | None = None
+
+        def close_recording() -> None:
+            nonlocal recorder
+            if recorder is None:
+                return
+            previous = recorder
+            recorder = None
+            try:
+                path = previous.close()
+                if path is not None:
+                    self.emit("recorded", file=path.name)
+            except (OSError, wave.Error) as exc:
+                self.emit("recording_error", text=str(exc))
+
         try:
             active = [(i, v) for i, v in enumerate(self.settings.vfos) if v.valid()]
             if not active:
@@ -312,7 +343,10 @@ class Scanner:
 
                     def record(block: np.ndarray) -> None:
                         nonlocal recorder, recording_failed
-                        if not self.settings.record_audio or recording_failed or not len(block):
+                        if not self.recording_enabled:
+                            close_recording()
+                            return
+                        if recording_failed or not len(block):
                             return
                         try:
                             if recorder is None:
@@ -329,6 +363,8 @@ class Scanner:
                                     pass
                                 recorder = None
                     while time.monotonic() < end and not self.stop_flag.is_set():
+                        if not self.recording_enabled:
+                            close_recording()
                         iq = receiver.read(timeout=0.10)
                         if not len(iq) or time.monotonic() < settle_until:
                             continue
@@ -366,6 +402,8 @@ class Scanner:
                     self.emit("receiving", index=index)
                     silent_since = None if gate.is_open else time.monotonic()
                     while not self.stop_flag.is_set():
+                        if not self.recording_enabled:
+                            close_recording()
                         iq = receiver.read(timeout=0.12)
                         if len(iq):
                             db, samples = demod.process(iq)
@@ -392,25 +430,12 @@ class Scanner:
                             break
                     if gate.enabled and gate.noise_floor_db is not None:
                         noise_memory[index] = gate.noise_floor_db
-                    if recorder is not None:
-                        try:
-                            path = recorder.close()
-                            if path is not None:
-                                self.emit("recorded", index=index, file=path.name)
-                        except OSError as exc:
-                            self.emit("recording_error", text=str(exc))
-                        recorder = None
+                    close_recording()
                     self.emit("idle", index=index, level=last_db)
         except Exception as exc:
             self.emit("error", text=str(exc))
         finally:
-            if recorder is not None:
-                try:
-                    path = recorder.close()
-                    if path is not None:
-                        self.emit("recorded", file=path.name)
-                except Exception as exc:
-                    LOG.warning("Opname sluiten mislukt: %s", exc)
+            close_recording()
             if audio:
                 try:
                     audio.close()

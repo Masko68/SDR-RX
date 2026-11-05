@@ -1,0 +1,5 @@
+Build van Windows EXE via GitHub Actions.
+Het publieke GitHub-project bevat om licentieredenen geen derdepartij DLL's.
+Na downloaden van de op GitHub gebouwde EXE: plaats de werkende Airspy DLL's
+uit de eerdere Mykola 20 VFO Windows-map in drivers\ naast de EXE.
+Wil je EEN EXE inclusief Airspy DLL's? Gebruik lokaal BOUW-EXE-WINDOWS.bat.

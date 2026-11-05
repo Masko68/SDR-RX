@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableExtensions
 cd /d "%~dp0"
-title Mykola 20 VFO v1.3 - Audio/Squelch
+title Mykola 20 VFO v1.3.2 - Live WAV
 set "LOG=%~dp0start-log.txt"
 set "VENV=%~dp0.venv_20vfo"
 set "VPY=%VENV%\Scripts\python.exe"
@@ -10,7 +10,7 @@ set "VPY=%VENV%\Scripts\python.exe"
 >> "%LOG%" echo Datum: %DATE% %TIME%
 
 echo ==================================================
-echo   MYKOLA 20 VFO v1.3 - PRIORITEIT / WAV-OPNAME
+echo   MYKOLA 20 VFO v1.3.2 - LIVE WAV-OPNAME
 echo ==================================================
 echo Deze opdracht toont ook waarom starten mogelijk mislukt.
 echo Het oude Mykola-programma wordt niet aangepast.

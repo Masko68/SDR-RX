@@ -1,3 +1,16 @@
+MYKOLA 20 VFO v1.3.2 - LIVE WAV OPNAME
+
+NIEUW: Je kunt WAV-opname aanvinken of uitvinken zonder de scan te stoppen.
+De rode REC-melding verschijnt alleen wanneer een gesprek werkelijk wordt opgenomen.
+Bij UIT sluit het lopende WAV-bestand vanzelf; de scan en audio gaan door.
+Met OPEN OPNAMEMAP vind je je geluidsbestanden terug.
+Onderaan zie je ook de naam van het laatst opgeslagen WAV-bestand.
+
+BELANGRIJK: kopieer eventueel data/vfo20.json uit je oude map.
+Bewaar v1.3.1 als reserve. Python 3.14 64-bit wordt ondersteund.
+Start via START-WINDOWS.bat. Gebruik SIMULATIE UIT voor echte Airspy ontvangst.
+
+--- EERDERE INSTRUCTIES ---
 MYKOLA 20 VFO - AUDIOFIX (PYTHON 3.14, WINDOWS 64-BIT)
 ====================================================
 

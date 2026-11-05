@@ -1,0 +1,17 @@
+MYKOLA 20 VFO v1.3.2 - Windows EXE
+
+Op jouw Windows-computer met Python 3.14:
+1. Pak dit ZIP-bestand volledig uit.
+2. Dubbelklik BOUW-EXE-WINDOWS.bat. Internet nodig bij eerste keer.
+3. De echte Windows-uitvoer komt in dist\Mykola20VFO_v1.3.2.exe.
+4. Dubbelklik op de EXE. Python is daarna niet meer nodig om te starten.
+
+De vier DLL-bestanden uit drivers/ worden door de EXE-builder in het
+programma opgenomen als ze aanwezig zijn. Dat zijn de drivers uit je
+bestaande werkende 1.3.2-pakket. Het originele Mykola.exe wordt niet gebruikt.
+
+In de EXE-versie staan frequenties (data/), opnames (opnames/) en
+scanner-log.txt naast de EXE. Wil je je bestaande frequenties bewaren,
+kopieer je eigen data/vfo20.json naar een data-map naast de EXE.
+
+Dit is een bouwpakket, niet een vooraf gecompileerde Windows-EXE.

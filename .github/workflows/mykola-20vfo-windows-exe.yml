@@ -1,0 +1,61 @@
+name: Mykola 20 VFO Windows EXE
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'Mykola-20VFO/**'
+      - '.github/workflows/mykola-20vfo-windows-exe.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  windows-exe:
+    runs-on: windows-2022
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: Mykola-20VFO
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Windows Python 3.14 x64
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+          architecture: x64
+      - name: Dependencies and packager
+        run: python -m pip install -r requirements.txt "pyinstaller>=6.22.3,<7"
+      - name: Run scanner tests
+        run: python -m unittest discover -s tests -q
+      - name: Build portable EXE
+        run: python -m PyInstaller --noconfirm --clean --onefile --windowed --name Mykola20VFO_v1.3.2 --collect-all sounddevice app.py
+      - name: Prepare portable Windows ZIP
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force release/Mykola20VFO/drivers | Out-Null
+          Copy-Item 'dist/Mykola20VFO_v1.3.2.exe' 'release/Mykola20VFO/'
+          Copy-Item 'drivers/README.txt' 'release/Mykola20VFO/drivers/'
+          Copy-Item 'drivers/LICENSE-3RD-PARTY.txt' 'release/Mykola20VFO/drivers/'
+          Copy-Item 'data/vfo20.json' 'release/Mykola20VFO/vfo20-default.json'
+          @'
+          MYKOLA 20 VFO v1.3.2 Windows x64
+          Dubbelklik Mykola20VFO_v1.3.2.exe. Python is niet nodig.
+          Voor echte Airspy R2 ontvangst: kopieer de vier DLL bestanden
+          uit je werkende vorige Mykola-20VFO Windows pakket naar drivers/:
+            airspy.dll, libusb-1.0.dll, msvcr100.dll, pthreadVC2.dll
+          Plaats je eigen frequenties desgewenst in data/vfo20.json,
+          naast de EXE. WAV's verschijnen in opnames/ naast de EXE.
+          Zonder Airspy DLL's werkt de simulator wel maar geen hardware.
+          Dit is geen aangepaste Mykola.exe.
+          '@ | Set-Content 'release/Mykola20VFO/LEES-MIJ-EXE.txt' -Encoding utf8
+          New-Item -ItemType Directory -Force 'release/Mykola20VFO/data' | Out-Null
+          Copy-Item 'data/vfo20.json' 'release/Mykola20VFO/data/vfo20.json'
+          Compress-Archive -Path 'release/Mykola20VFO' -DestinationPath 'release/Mykola20VFO_v1.3.2-Windows-x64.zip' -CompressionLevel Optimal
+      - name: Downloadbare EXE
+        uses: actions/upload-artifact@v4
+        with:
+          name: Mykola20VFO-v1.3.2-Windows-x64
+          path: Mykola-20VFO/release/Mykola20VFO_v1.3.2-Windows-x64.zip
+          retention-days: 30

@@ -4,11 +4,15 @@ Original application not modified. All source files are editable.
 """
 from __future__ import annotations
 import csv
+import os
 import queue
+import subprocess
+import sys
 import threading
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 from pathlib import Path
+from runtime_paths import app_dir
 from config import Settings, VFO, load, save, SLOTS
 from scanner import Scanner
 
@@ -106,7 +110,7 @@ class VFOWidget:
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("20 VFO Scanner v1.3 • Airspy R2 • Bewerkbare standalone versie")
+        self.title("20 VFO Scanner v1.3.2 • Airspy R2 • Bewerkbare standalone versie")
         self.geometry("1430x810")
         self.minsize(1050, 500)
         self.configure(bg=BG)
@@ -114,6 +118,8 @@ class App(tk.Tk):
         self.events: queue.Queue[dict] = queue.Queue()
         self.scanner: Scanner | None = None
         self.active_index = -1
+        self.audio_ok = False
+        self.last_recorded_file = ""
         self.audio_map: dict[str, int | None] = {"Windows standaard": None}
         self.build_styles()
         self.build()
@@ -123,7 +129,14 @@ class App(tk.Tk):
     def build_styles(self):
         style = ttk.Style(self)
         style.theme_use("clam")
-        style.configure("TCombobox", foreground=FG, fieldbackground=ROW, background=ROW)
+        style.configure("TCombobox", foreground="#000000", fieldbackground="#f2f2f2", background="#f2f2f2",
+                        selectforeground="#000000", selectbackground="#d9d9d9", arrowcolor="#000000")
+        style.map("TCombobox",
+                  foreground=[("readonly", "#000000")],
+                  fieldbackground=[("readonly", "#f2f2f2")],
+                  background=[("readonly", "#f2f2f2")],
+                  selectforeground=[("readonly", "#000000")],
+                  selectbackground=[("readonly", "#d9d9d9")])
         style.configure("TProgressbar", background=GREEN, troughcolor="#3e4347", borderwidth=0)
 
     def text_label(self, parent, label, **kwargs):
@@ -132,7 +145,7 @@ class App(tk.Tk):
     def build(self):
         bar = tk.Frame(self, bg=PANEL, padx=12, pady=9)
         bar.pack(fill="x")
-        tk.Label(bar, text="20 VFO SCANNER v1.3", bg=PANEL, fg=FG,
+        tk.Label(bar, text="20 VFO SCANNER v1.3.2", bg=PANEL, fg=FG,
                  font=("Segoe UI", 18, "bold")).pack(side="left", padx=(4, 28))
         self.start_btn = tk.Button(bar, text="▶ START SCAN", command=self.start,
                                    bg="#1c8239", fg="white", relief="flat", padx=16, pady=8, font=("Segoe UI", 10, "bold"))
@@ -190,10 +203,10 @@ class App(tk.Tk):
         self.priority_every = tk.StringVar(value=str(self.settings.priority_every))
         self.spin(priority_frame, self.priority_every, 1, 10, 4)
         self.record_audio = tk.BooleanVar(value=self.settings.record_audio)
-        tk.Checkbutton(priority_frame, text="Automatisch WAV opnemen bij ontvangst", variable=self.record_audio,
+        tk.Checkbutton(priority_frame, text="WAV OPNAME AAN/UIT (ook tijdens scan)", variable=self.record_audio,
+                       command=self.toggle_recording,
                        bg=BG, fg=FG, selectcolor=ROW, activebackground=BG).pack(side="left", padx=(22, 10))
-        tk.Label(priority_frame, text="Opnames lokaal in 'opnames/'", bg=BG, fg=MUTED,
-                 font=FONT).pack(side="left")
+        tk.Label(priority_frame, text="WAV 48 kHz", bg=BG, fg=MUTED, font=FONT).pack(side="left")
 
         audio_frame = tk.Frame(self, bg=BG, padx=15, pady=4)
         audio_frame.pack(fill="x")
@@ -238,12 +251,19 @@ class App(tk.Tk):
         self.status.pack(side="left", fill="x", expand=True)
         self.progress = tk.Label(bottom, text="0 / 20", bg=PANEL, fg=FG, font=("Consolas", 12))
         self.progress.pack(side="right")
-        self.audio_status = tk.Label(self, text="Audio: nog niet gestart. Controleer eerst met TEST GELUID.",
+        self.audio_status = tk.Label(self, text="Audio-uitgang: nog niet gestart. Controleer eerst met TEST GELUID.",
                                      bg=BG, fg=ORANGE, anchor="w", font=("Segoe UI", 9))
         self.audio_status.pack(fill="x", padx=15, pady=(0, 6))
-        self.record_status = tk.Label(self, text="Opname: uit (zet WAV opnemen aan voor lokale bestanden).",
+        rec_line = tk.Frame(self, bg=BG)
+        rec_line.pack(fill="x", padx=15, pady=(0, 5))
+        self.record_status = tk.Label(rec_line, text="WAV-opname: uit (klik op het vinkje om in te schakelen).",
                                       bg=BG, fg=MUTED, anchor="w", font=("Segoe UI", 9))
-        self.record_status.pack(fill="x", padx=15, pady=(0, 6))
+        self.record_status.pack(side="left", fill="x", expand=True)
+        tk.Button(rec_line, text="📁 Open opnamemap", command=self.open_recordings,
+                  bg="#36587c", fg="white", relief="flat", padx=8, pady=3).pack(side="right")
+        self.last_recording_status = tk.Label(self, text="Laatste WAV: nog geen opname in deze sessie.",
+                                              bg=BG, fg=MUTED, anchor="w", font=("Segoe UI", 9))
+        self.last_recording_status.pack(fill="x", padx=15, pady=(0, 5))
 
     def find_audio_devices(self):
         """Populate only real output-capable Windows devices."""
@@ -288,7 +308,7 @@ class App(tk.Tk):
             messagebox.showerror("Audio test", str(exc))
             return
         self.audio_test_btn.configure(state="disabled")
-        self.audio_status.configure(text="Audio: testtoon wordt afgespeeld ...", fg=ORANGE)
+        self.audio_status.configure(text="Audio-uitgang: testtoon wordt afgespeeld ...", fg=ORANGE)
         def work():
             try:
                 actual_device = Scanner.test_audio(device)
@@ -299,12 +319,41 @@ class App(tk.Tk):
                                  "text": f"Audio-test mislukt: {exc}"})
         threading.Thread(target=work, name="Audio test", daemon=True).start()
 
+    def toggle_recording(self):
+        """Take effect during a scan; persist only the recording setting."""
+        enabled = bool(self.record_audio.get())
+        if self.scanner is not None:
+            self.scanner.set_recording(enabled)
+        self.settings.record_audio = enabled
+        try:
+            save(self.settings)
+        except OSError as exc:
+            messagebox.showwarning("WAV-instelling", f"De keuze werkt nu, maar opslaan is mislukt: {exc}")
+        if enabled:
+            self.record_status.configure(text="WAV-opname: AAN • wacht op ontvangen gesprek", fg=GREEN)
+        else:
+            self.record_status.configure(text="WAV-opname: UIT • lopend WAV-bestand wordt afgesloten", fg=ORANGE)
+
+    def open_recordings(self):
+        """Open the fixed local recordings directory, never a user-supplied path."""
+        folder = app_dir() / "opnames"
+        try:
+            folder.mkdir(parents=True, exist_ok=True)
+            if os.name == "nt":
+                os.startfile(str(folder))
+            elif sys.platform == "darwin":
+                subprocess.Popen(["open", str(folder)])
+            else:
+                subprocess.Popen(["xdg-open", str(folder)])
+        except (OSError, FileNotFoundError) as exc:
+            messagebox.showerror("Opnamemap", f"Kan opnamemap niet openen: {exc}\nMap: {folder}")
+
     def mousewheel(self, event):
         self.canvas.yview_scroll(-1 * int(event.delta / 120), "units")
 
     def spin(self, parent, var, low, high, width, increment=1):
         tk.Spinbox(parent, from_=low, to=high, increment=increment, textvariable=var, width=width,
-                   bg=ROW, fg=FG, insertbackground=FG, buttonbackground=ROW,
+                   bg="#f2f2f2", fg="#000000", insertbackground="#000000", buttonbackground="#e0e0e0",
                    relief="flat").pack(side="left")
 
     def snapshot(self) -> Settings:
@@ -361,13 +410,15 @@ class App(tk.Tk):
         for row in self.widgets:
             row.idle()
         self.scanner = Scanner(self.settings, self.events)
+        self.audio_ok = False
         self.scanner.launch()
         self.start_btn.configure(state="disabled")
         self.stop_btn.configure(state="normal")
         self.status.configure(text="Ontvanger starten ...", fg=ORANGE)
-        self.audio_status.configure(text="Audio: geluidsuitgang openen ...", fg=ORANGE)
-        self.record_status.configure(text="Opname: aan (lokaal in opnames/)" if self.settings.record_audio
-                                     else "Opname: uit", fg=ORANGE if self.settings.record_audio else MUTED)
+        self.audio_status.configure(text="Audio-uitgang: geluidsuitgang openen ...", fg=ORANGE)
+        self.record_status.configure(text="WAV-opname: AAN • wacht op ontvangen gesprek"
+                                     if self.settings.record_audio else "WAV-opname: UIT • direct inschakelbaar tijdens scan",
+                                     fg=GREEN if self.settings.record_audio else MUTED)
 
     def stop(self):
         if self.scanner:
@@ -384,6 +435,7 @@ class App(tk.Tk):
                     self.status.configure(text=f"Actief: {msg['text']} • sequentieel scannen",
                                           fg=ORANGE if self.settings.demo else GREEN)
                 elif t == "audio":
+                    self.audio_ok = bool(msg["ok"])
                     self.audio_status.configure(text=msg["text"], fg=GREEN if msg["ok"] else "#ff7070")
                 elif t == "audio_test":
                     self.audio_test_btn.configure(state="normal")
@@ -399,14 +451,22 @@ class App(tk.Tk):
                     self.widgets[msg["index"]].update_signal(msg["level"], msg["open"], msg.get("threshold"))
                 elif t == "receiving":
                     self.status.configure(text=f"Audio actief: VFO {msg['index']+1:02d} • wacht tot signaal wegvalt", fg=GREEN)
+                    channel = self.settings.vfos[msg["index"]]
+                    if self.audio_ok and not channel.mute and channel.volume > 0:
+                        self.audio_status.configure(text=f"Audio-uitgang actief: VFO {msg['index']+1:02d} via {self.audio_choice.get()}", fg=GREEN)
+                    elif self.audio_ok:
+                        self.audio_status.configure(text=f"VFO {msg['index']+1:02d}: audio gedempt (MUTE of volume 0)", fg=ORANGE)
                 elif t == "idle":
                     self.widgets[msg["index"]].idle()
                 elif t == "recording":
-                    self.record_status.configure(text=f"REC ● VFO {msg['index']+1:02d}: {msg['file']}", fg="#ff8a80")
+                    self.record_status.configure(text=f"● REC VFO {msg['index']+1:02d}: {msg['file']}", fg="#ff7070")
                 elif t == "recorded":
-                    self.record_status.configure(text=f"Opname opgeslagen: {msg['file']}", fg=GREEN)
+                    self.last_recorded_file = msg["file"]
+                    self.last_recording_status.configure(text=f"Laatste WAV opgeslagen: {msg['file']}", fg=GREEN)
+                    self.record_status.configure(text="WAV-opname: AAN • wacht op volgend gesprek"
+                                                 if self.record_audio.get() else "WAV-opname: UIT", fg=GREEN if self.record_audio.get() else MUTED)
                 elif t == "recording_error":
-                    self.record_status.configure(text=f"Opnamefout: {msg['text']}", fg="#ff7070")
+                    self.record_status.configure(text=f"WAV-opnamefout: {msg['text']}", fg="#ff7070")
                 elif t == "message":
                     self.status.configure(text=msg["text"], fg=ORANGE)
                 elif t == "error":
@@ -417,6 +477,10 @@ class App(tk.Tk):
                     self.stop_btn.configure(state="disabled")
                     self.active_index = -1
                     self.progress.configure(text="0 / 20")
+                    self.audio_status.configure(text=f"Audio-uitgang: gereed ({self.audio_choice.get()})", fg=GREEN)
+                    self.record_status.configure(text="WAV-opname: UIT" if not self.record_audio.get()
+                                                else "WAV-opname: AAN • stand-by voor volgende scan",
+                                                fg=MUTED if not self.record_audio.get() else GREEN)
         except queue.Empty:
             pass
         if self.winfo_exists():
