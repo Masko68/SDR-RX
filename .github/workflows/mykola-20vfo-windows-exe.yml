@@ -8,7 +8,7 @@ on:
       - '.github/workflows/mykola-20vfo-windows-exe.yml'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   windows-exe:
@@ -59,3 +59,20 @@ jobs:
           name: Mykola20VFO-v1.3.2-Windows-x64
           path: Mykola-20VFO/release/Mykola20VFO_v1.3.2-Windows-x64.zip
           retention-days: 30
+
+      - name: Publiceer blijvende GitHub Release v1.3.2
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "mykola-v1.3.2"
+          $repo = "${{ github.repository }}"
+          $asset = "release/Mykola20VFO_v1.3.2-Windows-x64.zip"
+          gh release view $tag --repo $repo *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $tag $asset --repo $repo --clobber
+          } else {
+            $notes = "Mykola 20 VFO v1.3.2 voor Windows 64-bit. Inclusief zelfstandige EXE, zonder Python-installatie. Voor echte Airspy R2 ontvangst: kopieer de vier Airspy-DLL's uit je bestaande werkende Windows-pakket naar de map drivers naast de EXE. Download de ZIP, pak deze volledig uit en start Mykola20VFO_v1.3.2.exe. Je instellingen en WAV-opnames worden lokaal opgeslagen. Dit is een apart scannerproject en geen wijziging van Mykola.exe."
+            gh release create $tag $asset --repo $repo --title "Mykola 20 VFO v1.3.2 - Windows x64" --notes $notes
+          }
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
